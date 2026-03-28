@@ -49,7 +49,7 @@ export default function AuditPage() {
         response = await api.audit.getAll();
       }
       if (response.success && response.data) {
-        setEntries(response.data);
+        setEntries(response.data as unknown as AuditEntry[]);
       }
     } catch (err) {
       console.error('Error loading audit log:', err);
