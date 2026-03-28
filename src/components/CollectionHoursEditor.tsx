@@ -3,15 +3,9 @@
 import { useState } from 'react';
 import { ClockIcon, PlusIcon, TrashIcon } from '@heroicons/react/24/outline';
 import { buttonStyles, inputStyles } from '@/utils/styles';
+import { TimeSlot, CollectionHours } from '@/types';
 
-export interface TimeSlot {
-  open: string;
-  close: string;
-}
-
-export interface CollectionHours {
-  [key: string]: TimeSlot[];
-}
+export type { CollectionHours };
 
 interface CollectionHoursEditorProps {
   initialHours?: CollectionHours;
@@ -50,11 +44,6 @@ export default function CollectionHoursEditor({
   onChange,
 }: CollectionHoursEditorProps) {
   const [internalHours, setInternalHours] = useState<CollectionHours>(initialHours);
-
-  // Keep internal state in sync with initialHours when uncontrolled
-  if (!controlledHours && internalHours !== initialHours) {
-    // simple shallow check replacement not needed here; rely on referential change passed via parent when resetting
-  }
 
   const hours = controlledHours || internalHours;
 

@@ -139,7 +139,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         get().logout();
         set({ isInitialized: true });
       }
-    } catch (error) {
+    } catch {
       // Invalid token, clear it
       get().logout();
       set({ isInitialized: true });

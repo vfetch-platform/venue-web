@@ -8,7 +8,7 @@ import { CreateItemForm, ItemCategory } from '@/types';
 import { XMarkIcon } from '@heroicons/react/24/outline';
 import { buttonStyles, cardStyles, inputStyles } from '@/utils/styles';
 
-import { apiClient } from '@/lib/api';
+import { api } from '@/services/api';
 import { useAuthStore } from '@/store/auth';
 
 const categories: ItemCategory[] = [
@@ -100,7 +100,7 @@ interface GeneratedFeatures {
     setIsLoading(true);
 
     try {
-      await apiClient.createItem(formData);
+      await api.items.create(formData);
       router.push('/items');
     } catch (error) {
       console.error('Error creating item:', error);

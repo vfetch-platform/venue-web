@@ -34,7 +34,7 @@ function ResetPasswordContent() {
           setStatus('invalid');
           setErrorMessage(response.error || 'Invalid or expired reset token.');
         }
-      } catch (err) {
+      } catch {
         setStatus('invalid');
         setErrorMessage('Failed to verify token. It may have expired.');
       }
@@ -70,8 +70,8 @@ function ResetPasswordContent() {
         setErrorMessage(response.error || 'Failed to reset password');
         setStatus('error'); // Back to form
       }
-    } catch (err: any) {
-      setErrorMessage(err.message || 'An error occurred');
+    } catch (err) {
+      setErrorMessage((err as { message?: string }).message || 'An error occurred');
       setStatus('error');
     } finally {
       setIsSubmitting(false);

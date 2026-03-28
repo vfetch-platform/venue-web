@@ -23,8 +23,8 @@ export default function AdminVenuesPage() {
             if (res.success && res.data) {
                 setVenues(res.data.data);
             }
-        } catch (err: any) {
-            setError(err.message || 'Failed to fetch venues');
+        } catch (err) {
+            setError((err as { message?: string }).message || 'Failed to fetch venues');
         } finally {
             setLoading(false);
         }

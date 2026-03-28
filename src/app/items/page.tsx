@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import Layout from '@/components/Layout';
 import ItemModal from '@/components/ItemModal';
 import { useAuthStore } from '@/store/auth';
@@ -37,9 +37,6 @@ export default function ItemsPage() {
   const [error, setError] = useState<string | null>(null);
   const [deleteModal, setDeleteModal] = useState<{ itemId: string; reason: string } | null>(null);
 
-  // Track last loaded venue id to avoid duplicate fetches
-  const lastLoadedVenueIdRef = useRef<string | null>(null);
-
   // Load items when auth initialized & we have a venue id (from venue object or user.venue_id)
   useEffect(() => {
     if (!isInitialized || !isAuthenticated) return; // wait for auth to finish
@@ -48,8 +45,8 @@ export default function ItemsPage() {
       const currentState = useAuthStore.getState();
       const vid = currentState.venue?.id || currentState.user?.venue_id;
 
-      // If venue id available and not loaded yet, load
-      if (vid && lastLoadedVenueIdRef.current !== vid) {
+      // If venue id available, load (always refresh on mount)
+      if (vid) {
         await loadItems(vid);
         return;
       }
@@ -61,29 +58,24 @@ export default function ItemsPage() {
           if (vResp.success && vResp.data?.id) {
             currentState.setVenue(vResp.data);
             const newVid = vResp.data.id;
-            if (lastLoadedVenueIdRef.current !== newVid) {
-              await loadItems(newVid);
-              return;
-            }
+            await loadItems(newVid);
+            return;
           }
-        } catch (e) {
+        } catch {
           // swallow; store already logs a warning in initial fetch path
         }
       }
 
-      // Retry shortly if still nothing and not yet loaded
-      if (!lastLoadedVenueIdRef.current) {
-        setTimeout(() => {
-          const retryState = useAuthStore.getState();
-          const retryVid = retryState.venue?.id || retryState.user?.venue_id;
-          if (retryVid && lastLoadedVenueIdRef.current !== retryVid) {
-            loadItems(retryVid);
-          }
-        }, 600);
-      }
+      // Retry shortly if still nothing
+      setTimeout(() => {
+        const retryState = useAuthStore.getState();
+        const retryVid = retryState.venue?.id || retryState.user?.venue_id;
+        if (retryVid) loadItems(retryVid);
+      }, 600);
     };
 
     void attemptLoad();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isInitialized, isAuthenticated, venue, user]);
 
   const loadItems = async (explicitVenueId?: string): Promise<void> => {
@@ -97,7 +89,7 @@ export default function ItemsPage() {
       const response = await api.items.getByVenue(venueId);
       if (response.success && response.data) {
         setItems(response.data.data);
-        lastLoadedVenueIdRef.current = venueId;
+
       }
     } catch (error) {
       console.error('Error loading items:', error);

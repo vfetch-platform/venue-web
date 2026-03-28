@@ -9,8 +9,6 @@ import { api } from '@/services/api';
 
 export default function AdminDashboardPage() {
     const [stats, setStats] = useState({ total: 0, pending: 0, approved: 0 });
-    const [loading, setLoading] = useState(true);
-
     useEffect(() => {
         const fetchStats = async () => {
             try {
@@ -20,8 +18,6 @@ export default function AdminDashboardPage() {
                 }
             } catch (error) {
                 console.error('Failed to fetch stats:', error);
-            } finally {
-                setLoading(false);
             }
         };
 

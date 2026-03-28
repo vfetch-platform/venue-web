@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import Layout from '@/components/Layout';
 import CollectionHoursEditor, { CollectionHours } from '@/components/CollectionHoursEditor';
 import { useAuthStore } from '@/store/auth';
-import { UpdateVenueForm, CollectionSchedule } from '@/types';
+import { UpdateVenueForm } from '@/types';
 import { api, ApiError } from '@/services/api';
 import {
   BuildingStorefrontIcon,
@@ -17,16 +17,8 @@ import {
 } from '@heroicons/react/24/outline';
 import { buttonStyles, cardStyles, inputStyles } from '@/utils/styles';
 
-const venueTypes = [
-  { value: 'bar', label: 'Bar' },
-  { value: 'club', label: 'Club' },
-  { value: 'restaurant', label: 'Restaurant' },
-  { value: 'hotel', label: 'Hotel' },
-  { value: 'other', label: 'Other' },
-];
-
 export default function ProfilePage() {
-  const { user, venue, setVenue } = useAuthStore();
+  const { venue, setVenue } = useAuthStore();
   const [hydrated, setHydrated] = useState(false);
   useEffect(() => { setHydrated(true); }, []);
 
@@ -114,6 +106,7 @@ export default function ProfilePage() {
       });
       setScheduleData((venue?.schedule as CollectionHours) || DEFAULT_HOURS);
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [venue, isEditing]);
 
   if (!hydrated) {

@@ -7,7 +7,7 @@ import { useAuthStore } from '@/store/auth';
 import { User } from '@/types';
 import { api } from '@/services/api';
 import Link from 'next/link';
-import { PlusIcon, UserIcon, ShieldCheckIcon, UserGroupIcon, PencilSquareIcon, TrashIcon } from '@heroicons/react/24/outline';
+import { PlusIcon, ShieldCheckIcon, UserGroupIcon, PencilSquareIcon, TrashIcon } from '@heroicons/react/24/outline';
 
 interface EditStaffModalProps {
   member: User | null;
@@ -170,8 +170,8 @@ export default function StaffPage() {
         } else {
              setError('Failed to load staff');
         }
-      } catch (err: any) {
-        setError(err.message || 'An error occurred fetching staff');
+      } catch (err) {
+        setError((err as { message?: string }).message || 'An error occurred fetching staff');
       } finally {
         setIsLoading(false);
       }
@@ -185,7 +185,7 @@ export default function StaffPage() {
     setIsEditModalOpen(true);
   };
 
-  const handleUpdate = async (updatedMember: any) => {
+  const handleUpdate = async (updatedMember: User) => {
     setIsUpdating(true);
     try {
       const venueId = venue?.id || user?.venue_id;
@@ -204,8 +204,8 @@ export default function StaffPage() {
         setIsEditModalOpen(false);
         setEditingMember(null);
       }
-    } catch (err: any) {
-      setError(err.message || 'Failed to update user');
+    } catch (err) {
+      setError((err as { message?: string }).message || 'Failed to update user');
     } finally {
       setIsUpdating(false);
     }
@@ -222,8 +222,8 @@ export default function StaffPage() {
 
       await api.venues.deleteStaff(venueId, userId);
       setStaff(staff.filter((s) => s.id !== userId));
-    } catch (err: any) {
-      setError(err.message || 'Failed to delete user');
+    } catch (err) {
+      setError((err as { message?: string }).message || 'Failed to delete user');
     }
   };
 

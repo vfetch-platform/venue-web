@@ -211,51 +211,6 @@ const StatCard = ({ title, value, icon: Icon, color = "blue" }: {
   );
 };
 
-const SimpleBarChart = ({ data }: { data: MonthlyTrend[] }) => {
-  const maxValue = Math.max(...data.map(d => Math.max(d.found, d.claimed, d.collected)), 1);
-  
-  return (
-    <div className="space-y-4">
-      {data.map((item, index) => (
-        <div key={index} className="space-y-2">
-          <div className="flex justify-between text-sm text-gray-600">
-            <span>{item.month}</span>
-            <div className="flex space-x-4 text-xs">
-              <span className="flex items-center">
-                <div className="w-3 h-3 bg-blue-500 rounded-full mr-1"></div>
-                Found: {item.found}
-              </span>
-              <span className="flex items-center">
-                <div className="w-3 h-3 bg-yellow-500 rounded-full mr-1"></div>
-                Claimed: {item.claimed}
-              </span>
-              <span className="flex items-center">
-                <div className="w-3 h-3 bg-green-500 rounded-full mr-1"></div>
-                Collected: {item.collected}
-              </span>
-            </div>
-          </div>
-          <div className="relative">
-            <div className="flex space-x-1">
-              <div 
-                className="bg-blue-500 h-6 rounded" 
-                style={{ width: `${(item.found / maxValue) * 100}%` }}
-              ></div>
-              <div 
-                className="bg-yellow-500 h-6 rounded" 
-                style={{ width: `${(item.claimed / maxValue) * 100}%` }}
-              ></div>
-              <div 
-                className="bg-green-500 h-6 rounded" 
-                style={{ width: `${(item.collected / maxValue) * 100}%` }}
-              ></div>
-            </div>
-          </div>
-        </div>
-      ))}
-    </div>
-  );
-};
 
 const PieChart = ({ data }: { data: CategoryBreakdown[] }) => {
   if (data.length === 0) {
@@ -401,6 +356,7 @@ export default function DashboardPage() {
 
     fetchData();
     return () => { cancelled = true; };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [venue?.id]);
 
   const dashboardData = useMemo(() => buildDashboardData(items, claims), [items, claims]);

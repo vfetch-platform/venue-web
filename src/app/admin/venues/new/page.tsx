@@ -42,10 +42,11 @@ export default function AddVenuePage() {
             } else {
                 setError('Failed to create venue');
             }
-        } catch (err: any) {
-            let errorMsg = err.message || 'An error occurred';
-            if (err.data && err.data.details && Array.isArray(err.data.details)) {
-                errorMsg += ': ' + err.data.details.map((d: any) => d.msg).join(', ');
+        } catch (err) {
+            const error = err as { message?: string; data?: { details?: { msg: string }[] } };
+            let errorMsg = error.message || 'An error occurred';
+            if (error.data && error.data.details && Array.isArray(error.data.details)) {
+                errorMsg += ': ' + error.data.details.map((d) => d.msg).join(', ');
             }
             setError(errorMsg);
         } finally {

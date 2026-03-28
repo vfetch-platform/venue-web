@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import Layout from '@/components/Layout';
 import { api } from '@/services/api';
 import { useRouter } from 'next/navigation';
@@ -31,11 +31,7 @@ export default function ManageVenuePage({ params }: { params: Promise<{ id: stri
         role: 'venue_staff',
     });
 
-    useEffect(() => {
-        fetchVenueData();
-    }, [id]);
-
-    const fetchVenueData = async () => {
+    const fetchVenueData = useCallback(async () => {
         setLoading(true);
         try {
             const [venueRes, staffRes] = await Promise.all([
@@ -50,23 +46,27 @@ export default function ManageVenuePage({ params }: { params: Promise<{ id: stri
             if (staffRes.success && staffRes.data) {
                 setStaff(staffRes.data as unknown as User[]);
             }
-        } catch (err: any) {
-            setError(err.message || 'Failed to fetch venue details');
+        } catch (err: unknown) {
+            setError(err instanceof Error ? err.message : 'Failed to fetch venue details');
         } finally {
             setLoading(false);
         }
-    };
+    }, [id]);
+
+    useEffect(() => {
+        fetchVenueData();
+    }, [fetchVenueData]);
 
     const handleVenueUpdate = async (e: React.FormEvent) => {
         e.preventDefault();
         try {
-            const res = await api.venues.update(id, formData as any);
+            const res = await api.venues.update(id, formData as Partial<Venue>);
             if (res.success && res.data) {
                 setVenue(res.data);
                 setEditMode(false);
             }
-        } catch (err: any) {
-            alert(err.message || 'Failed to update venue');
+        } catch (err: unknown) {
+            alert(err instanceof Error ? err.message : 'Failed to update venue');
         }
     };
 
@@ -76,8 +76,8 @@ export default function ManageVenuePage({ params }: { params: Promise<{ id: stri
             if (res.success && res.data) {
                 setVenue(res.data);
             }
-        } catch (err: any) {
-            alert(err.message || 'Failed to update status');
+        } catch (err: unknown) {
+            alert(err instanceof Error ? err.message : 'Failed to update status');
         }
     };
 
@@ -86,8 +86,8 @@ export default function ManageVenuePage({ params }: { params: Promise<{ id: stri
         try {
             await api.venues.adminDelete(id);
             router.push('/admin/venues');
-        } catch (err: any) {
-            alert(err.message || 'Failed to delete venue. (Cannot delete if there are items or staff)');
+        } catch (err: unknown) {
+            alert(err instanceof Error ? err.message : 'Failed to delete venue. (Cannot delete if there are items or staff)');
         }
     };
 
@@ -102,8 +102,8 @@ export default function ManageVenuePage({ params }: { params: Promise<{ id: stri
                 setShowAddStaff(false);
                 fetchVenueData(); // Refresh staff
             }
-        } catch (err: any) {
-            alert(err.message || 'Failed to add staff');
+        } catch (err: unknown) {
+            alert(err instanceof Error ? err.message : 'Failed to add staff');
         }
     };
 
@@ -112,8 +112,8 @@ export default function ManageVenuePage({ params }: { params: Promise<{ id: stri
         try {
             await api.auth.adminDeleteUser(userId);
             setStaff(staff.filter(s => s.id !== userId));
-        } catch (err: any) {
-            alert(err.message || 'Failed to remove staff');
+        } catch (err: unknown) {
+            alert(err instanceof Error ? err.message : 'Failed to remove staff');
         }
     };
 

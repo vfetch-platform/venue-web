@@ -31,7 +31,7 @@ export interface Venue {
   status: 'pending' | 'approved' | 'rejected' | 'suspended';
   logo_url?: string;
   opening_hours?: Record<string, unknown>;
-  schedule?: CollectionSchedule;
+  schedule?: CollectionHours;
   created_at: string;
   updated_at: string;
 }
@@ -42,14 +42,8 @@ export interface TimeSlot {
   close: string;
 }
 
-export interface CollectionSchedule {
-  monday?: TimeSlot[];
-  tuesday?: TimeSlot[];
-  wednesday?: TimeSlot[];
-  thursday?: TimeSlot[];
-  friday?: TimeSlot[];
-  saturday?: TimeSlot[];
-  sunday?: TimeSlot[];
+export interface CollectionHours {
+  [key: string]: TimeSlot[];
 }
 
 // Item types
@@ -176,5 +170,5 @@ export interface UpdateVenueForm {
   website?: string;
   type?: 'bar' | 'club' | 'restaurant' | 'hotel' | 'other';
   openingHours?: Record<string, unknown>;
-  schedule?: CollectionSchedule;
+  schedule?: CollectionHours;
 }
