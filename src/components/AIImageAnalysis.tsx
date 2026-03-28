@@ -1,8 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef, useCallback } from 'react';
 import Image from 'next/image';
-import { PhotoIcon, SparklesIcon, XMarkIcon, CheckIcon } from '@heroicons/react/24/outline';
+import { PhotoIcon, SparklesIcon, XMarkIcon, CheckIcon, CameraIcon } from '@heroicons/react/24/outline';
 import { Dialog, DialogPanel, DialogTitle } from '@headlessui/react';
 import { buttonStyles, inputStyles } from '@/utils/styles';
 import { api } from '@/services/api';
@@ -22,6 +22,7 @@ interface AIImageAnalysisProps {
   // Sends full extracted feature object so parent can populate multiple fields
   onDescriptionGenerated: (features: ExtractedFeaturesPayload) => void;
   onImagesSelected: (images: File[]) => void;
+  onSkipToManual: () => void;
 }
 
 interface AIAnalysisResult {
@@ -32,15 +33,96 @@ interface AIAnalysisResult {
   confidence?: number;
 }
 
-export default function AIImageAnalysis({ onDescriptionGenerated, onImagesSelected }: AIImageAnalysisProps) {
+const MAX_RETRIES = 3;
+
+export default function AIImageAnalysis({ onDescriptionGenerated, onImagesSelected, onSkipToManual }: AIImageAnalysisProps) {
   const [selectedImages, setSelectedImages] = useState<File[]>([]);
   const [previewUrls, setPreviewUrls] = useState<string[]>([]);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analysisResult, setAnalysisResult] = useState<AIAnalysisResult | null>(null);
+  const [analysisError, setAnalysisError] = useState<string | null>(null);
+  const [retryCount, setRetryCount] = useState(0);
 
   // Review modal state
   const [showReviewModal, setShowReviewModal] = useState(false);
   const [reviewData, setReviewData] = useState<ExtractedFeaturesPayload>({});
+
+  // Camera state
+  const [showCameraModal, setShowCameraModal] = useState(false);
+  const [cameraError, setCameraError] = useState<string | null>(null);
+  const [stream, setStream] = useState<MediaStream | null>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+
+  const stopStream = useCallback((s: MediaStream | null) => {
+    s?.getTracks().forEach(t => t.stop());
+  }, []);
+
+  const openCamera = useCallback(async () => {
+    setCameraError(null);
+    setShowCameraModal(true);
+
+    // Check permission state first so we can surface a clear error
+    // before getUserMedia triggers the browser popup
+    if (navigator.permissions) {
+      try {
+        const status = await navigator.permissions.query({ name: 'camera' as PermissionName });
+        if (status.state === 'denied') {
+          setCameraError('Camera access is blocked. Please allow camera access in your browser settings and try again.');
+          return;
+        }
+      } catch {
+        // permissions.query may not support 'camera' in all browsers — fall through
+      }
+    }
+
+    try {
+      const mediaStream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: { ideal: 'environment' }, width: { ideal: 1920 }, height: { ideal: 1080 } },
+      });
+      setStream(mediaStream);
+      if (videoRef.current) {
+        videoRef.current.srcObject = mediaStream;
+      }
+    } catch (err) {
+      const name = err instanceof DOMException ? err.name : '';
+      if (name === 'NotAllowedError' || name === 'PermissionDeniedError') {
+        setCameraError('Camera permission denied. Please allow camera access when prompted, or enable it in your browser settings.');
+      } else if (name === 'NotFoundError' || name === 'DevicesNotFoundError') {
+        setCameraError('No camera found on this device.');
+      } else {
+        setCameraError('Could not start camera. Please try uploading a file instead.');
+      }
+    }
+  }, []);
+
+  const closeCamera = useCallback(() => {
+    stopStream(stream);
+    setStream(null);
+    setCameraError(null);
+    setShowCameraModal(false);
+  }, [stream, stopStream]);
+
+  const capturePhoto = useCallback(() => {
+    if (!videoRef.current || !canvasRef.current) return;
+    const video = videoRef.current;
+    const canvas = canvasRef.current;
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    canvas.getContext('2d')?.drawImage(video, 0, 0);
+    canvas.toBlob(blob => {
+      if (!blob) return;
+      const file = new File([blob], `camera-${Date.now()}.jpg`, { type: 'image/jpeg' });
+      const url = URL.createObjectURL(file);
+      const newImages = [...selectedImages, file];
+      const newUrls = [...previewUrls, url];
+      setSelectedImages(newImages);
+      setPreviewUrls(newUrls);
+      onImagesSelected(newImages);
+      setAnalysisResult(null);
+      closeCamera();
+    }, 'image/jpeg', 0.92);
+  }, [selectedImages, previewUrls, onImagesSelected, closeCamera]);
 
   const handleImageSelection = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
@@ -89,9 +171,9 @@ export default function AIImageAnalysis({ onDescriptionGenerated, onImagesSelect
     if (selectedImages.length === 0) return;
 
     setIsAnalyzing(true);
+    setAnalysisError(null);
 
     try {
-      // Use real backend AI extraction (first image only currently supported by API)
       const response = await api.items.extractFeatures(selectedImages[0]);
 
       if (!response.success) {
@@ -108,7 +190,6 @@ export default function AIImageAnalysis({ onDescriptionGenerated, onImagesSelect
         confidence: undefined,
       });
 
-      // Store extracted features for review modal
       setReviewData({
         title: analysis.title || '',
         description: analysis.description || '',
@@ -122,11 +203,11 @@ export default function AIImageAnalysis({ onDescriptionGenerated, onImagesSelect
       setShowReviewModal(true);
     } catch (error) {
       console.error('Error analyzing images:', error);
-      let message = 'Failed to analyze images. Please try again or enter description manually.';
-      if (error instanceof Error && /not available|not configured/i.test(error.message)) {
-        message = 'AI analysis is not currently available. You can still enter a description manually.';
-      }
-      alert(message);
+      const message = error instanceof Error && /not available|not configured/i.test(error.message)
+        ? 'AI analysis is not currently available.'
+        : 'Failed to analyze images. Please try again.';
+      setAnalysisError(message);
+      setRetryCount(c => c + 1);
     } finally {
       setIsAnalyzing(false);
     }
@@ -160,18 +241,26 @@ export default function AIImageAnalysis({ onDescriptionGenerated, onImagesSelect
             className="hidden"
             id="ai-images"
           />
-          <label htmlFor="ai-images" className="cursor-pointer">
-            <SparklesIcon className="mx-auto h-12 w-12 text-blue-500" />
-            <span className="mt-2 block text-sm font-medium text-gray-900">
-              Upload photos for AI description
-            </span>
-            <span className="mt-1 block text-sm text-gray-500">
-              PNG, JPG, GIF, HEIC up to 10MB each
-            </span>
-            <span className="mt-2 block text-xs text-blue-600">
-              AI will analyze your images and generate a detailed description
-            </span>
-          </label>
+          <SparklesIcon className="mx-auto h-12 w-12 text-blue-500" />
+          <p className="mt-2 text-sm text-gray-500">PNG, JPG, GIF, HEIC up to 10MB each</p>
+          <div className="mt-4 flex items-center justify-center gap-3">
+            <label
+              htmlFor="ai-images"
+              className="cursor-pointer inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700"
+            >
+              <PhotoIcon className="h-4 w-4" />
+              Upload photos
+            </label>
+            <button
+              type="button"
+              onClick={openCamera}
+              className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50"
+            >
+              <CameraIcon className="h-4 w-4" />
+              Use camera
+            </button>
+          </div>
+          <p className="mt-3 text-xs text-blue-600">AI will analyze your images and generate a detailed description</p>
         </div>
       </div>
 
@@ -200,8 +289,8 @@ export default function AIImageAnalysis({ onDescriptionGenerated, onImagesSelect
             ))}
           </div>
 
-          {/* Analyze Button */}
-          {!analysisResult && (
+          {/* Analyze / error / success */}
+          {!analysisResult && !analysisError && (
             <div className="mt-4 text-center">
               <button
                 type="button"
@@ -215,7 +304,35 @@ export default function AIImageAnalysis({ onDescriptionGenerated, onImagesSelect
             </div>
           )}
 
-          {/* Re-analyze button if already analyzed */}
+          {analysisError && (
+            <div className="mt-4 rounded-lg bg-red-50 border border-red-200 p-4 text-center space-y-3">
+              <p className="text-sm text-red-700">{analysisError}</p>
+              <div className="flex items-center justify-center gap-3">
+                {retryCount < MAX_RETRIES && (
+                  <button
+                    type="button"
+                    onClick={analyzeImages}
+                    disabled={isAnalyzing}
+                    className={`${buttonStyles.primary} inline-flex items-center`}
+                  >
+                    <SparklesIcon className="h-4 w-4 mr-2" />
+                    {isAnalyzing ? 'Retrying…' : `Retry (${MAX_RETRIES - retryCount} left)`}
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={onSkipToManual}
+                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50"
+                >
+                  Fill in manually
+                </button>
+              </div>
+              {retryCount >= MAX_RETRIES && (
+                <p className="text-xs text-red-500">Maximum retries reached.</p>
+              )}
+            </div>
+          )}
+
           {analysisResult && (
             <div className="mt-4 text-center space-x-3">
               <span className="text-sm text-green-600 font-medium">AI analysis complete</span>
@@ -231,14 +348,54 @@ export default function AIImageAnalysis({ onDescriptionGenerated, onImagesSelect
         </div>
       )}
 
-      {/* Manual Upload Fallback */}
-      {selectedImages.length === 0 && (
-        <div className="text-center py-4">
-          <p className="text-sm text-gray-500">
-            Or continue with manual description entry below
-          </p>
+      {/* Camera Modal */}
+      <Dialog open={showCameraModal} onClose={closeCamera} className="relative z-50">
+        <div className="fixed inset-0 bg-black/70" aria-hidden="true" />
+        <div className="fixed inset-0 flex items-center justify-center p-4">
+          <DialogPanel className="mx-auto w-full max-w-lg rounded-xl bg-black overflow-hidden shadow-xl">
+            <div className="flex items-center justify-between px-4 py-3 bg-gray-900">
+              <DialogTitle className="text-sm font-medium text-white flex items-center gap-2">
+                <CameraIcon className="h-4 w-4" />
+                Take photo
+              </DialogTitle>
+              <button type="button" onClick={closeCamera} className="text-gray-400 hover:text-white">
+                <XMarkIcon className="h-5 w-5" />
+              </button>
+            </div>
+
+            {cameraError ? (
+              <div className="p-6 text-center space-y-3">
+                <p className="text-sm text-red-400">{cameraError}</p>
+                <button type="button" onClick={closeCamera} className={buttonStyles.secondary}>
+                  Close
+                </button>
+              </div>
+            ) : (
+              <>
+                {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
+                <video
+                  ref={videoRef}
+                  autoPlay
+                  playsInline
+                  className="w-full aspect-video object-cover bg-black"
+                  onCanPlay={e => (e.currentTarget.play())}
+                />
+                <canvas ref={canvasRef} className="hidden" />
+                <div className="flex justify-center py-4 bg-gray-900">
+                  <button
+                    type="button"
+                    onClick={capturePhoto}
+                    className="w-14 h-14 rounded-full bg-white hover:bg-gray-100 flex items-center justify-center shadow-lg"
+                    aria-label="Capture photo"
+                  >
+                    <div className="w-11 h-11 rounded-full border-2 border-gray-400" />
+                  </button>
+                </div>
+              </>
+            )}
+          </DialogPanel>
         </div>
-      )}
+      </Dialog>
 
       {/* AI Review Modal */}
       <Dialog open={showReviewModal} onClose={() => setShowReviewModal(false)} className="relative z-50">
