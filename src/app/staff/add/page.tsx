@@ -43,8 +43,8 @@ export default function AddStaffPage() {
         setTimeout(() => {
             router.push('/staff');
         }, 1500);
-    } catch (err: any) {
-        setError(err.message || 'Failed to create staff member');
+    } catch (err) {
+        setError((err as { message?: string }).message || 'Failed to create staff member');
         setIsSubmitting(false);
     }
   };

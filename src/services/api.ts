@@ -1,4 +1,4 @@
-import { ApiResponse, PaginatedResponse, User, Venue, Item, Claim } from '@/types';
+import { ApiResponse, PaginatedResponse, User, Venue, Item, Claim, CreateItemForm } from '@/types';
 
 // Specific payload returned by AI feature extraction endpoint
 interface ExtractedItemFeatures {
@@ -41,9 +41,10 @@ async function apiRequest<T>(
 ): Promise<T> {
   const token = getAuthToken();
 
+  const isFormData = options.body instanceof FormData;
   const config: RequestInit = {
     headers: {
-      'Content-Type': 'application/json',
+      ...(!isFormData && { 'Content-Type': 'application/json' }),
       ...(token && { Authorization: `Bearer ${token}` }),
       ...options.headers,
     },
@@ -165,7 +166,7 @@ export const api = {
     },
 
     // Create staff member (venue_admin only)
-    createStaff: async (venueId: string, data: any) => {
+    createStaff: async (venueId: string, data: Record<string, unknown>) => {
       return apiRequest<ApiResponse<User>>(`/venues/${venueId}/users`, {
         method: 'POST',
         body: JSON.stringify(data),
@@ -238,10 +239,20 @@ export const api = {
       return apiRequest<ApiResponse<Item>>(`/items/${id}`);
     },
 
-    create: async (data: Partial<Item>) => {
+    create: async (data: CreateItemForm) => {
+      const formData = new FormData();
+      Object.entries(data).forEach(([key, value]) => {
+        if (key === 'images' && value) {
+          (value as File[]).forEach(file => formData.append('images', file));
+        } else if (key === 'tags' && Array.isArray(value)) {
+          formData.append(key, JSON.stringify(value));
+        } else if (value !== null && value !== undefined) {
+          formData.append(key, value as string);
+        }
+      });
       return apiRequest<ApiResponse<Item>>('/items', {
         method: 'POST',
-        body: JSON.stringify(data),
+        body: formData,
       });
     },
 
@@ -321,11 +332,11 @@ export const api = {
   // Audit log endpoints
   audit: {
     getByEntity: async (entityType: string, entityId: string) => {
-      return apiRequest<ApiResponse<any[]>>(`/audit?entity_type=${encodeURIComponent(entityType)}&entity_id=${encodeURIComponent(entityId)}`);
+      return apiRequest<ApiResponse<Record<string, unknown>[]>>(`/audit?entity_type=${encodeURIComponent(entityType)}&entity_id=${encodeURIComponent(entityId)}`);
     },
 
     getAll: async (limit: number = 100) => {
-      return apiRequest<ApiResponse<any[]>>(`/audit?limit=${limit}`);
+      return apiRequest<ApiResponse<Record<string, unknown>[]>>(`/audit?limit=${limit}`);
     },
   },
 

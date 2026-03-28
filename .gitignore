@@ -5,7 +5,7 @@ yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 .next/
-
+.husky/
 # Environment variables
 .env
 .env.local

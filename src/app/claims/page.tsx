@@ -19,7 +19,7 @@ import {cardStyles } from '@/utils/styles';
 const statStatuses: ClaimStatus[] = ['pending','approved','collected','rejected'];
 
 export default function ClaimsPage() {
-  const { user, venue } = useAuthStore();
+  const { venue } = useAuthStore();
   const [claims, setClaims] = useState<Claim[]>([]);
   const [selectedStatuses, setSelectedStatuses] = useState<Set<ClaimStatus>>(new Set());
   const [isLoading, setIsLoading] = useState(false);
@@ -33,6 +33,7 @@ export default function ClaimsPage() {
     if (venue) {
       void loadClaims();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [venue]);
 
   const loadClaims = async (): Promise<void> => {

@@ -5,7 +5,6 @@ import Layout from '@/components/Layout';
 import { api } from '@/services/api';
 import { cardStyles, inputStyles } from '@/utils/styles';
 import {
-  MagnifyingGlassIcon,
   FunnelIcon,
 } from '@heroicons/react/24/outline';
 
@@ -16,8 +15,8 @@ interface AuditEntry {
   action: string;
   actor_id: string;
   actor_type: string;
-  changes?: Record<string, any>;
-  metadata?: Record<string, any>;
+  changes?: Record<string, unknown>;
+  metadata?: Record<string, unknown>;
   created_at: string;
 }
 
@@ -50,7 +49,7 @@ export default function AuditPage() {
         response = await api.audit.getAll();
       }
       if (response.success && response.data) {
-        setEntries(response.data);
+        setEntries(response.data as unknown as AuditEntry[]);
       }
     } catch (err) {
       console.error('Error loading audit log:', err);
@@ -60,9 +59,8 @@ export default function AuditPage() {
     }
   };
 
-  useEffect(() => {
-    loadEntries();
-  }, []);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { loadEntries(); }, []);
 
   const handleFilter = (e: React.FormEvent) => {
     e.preventDefault();

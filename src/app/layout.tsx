@@ -1,5 +1,8 @@
 import type { Metadata } from 'next'
+import { DM_Sans } from 'next/font/google'
 import './globals.css'
+
+const dmSans = DM_Sans({ subsets: ['latin'], weight: ['300', '400', '500', '600', '700'] })
 
 export const metadata: Metadata = {
   title: 'VFetch Venue Portal',
@@ -25,12 +28,8 @@ export default function RootLayout({
         <link rel="icon" href="/favicon.ico" />
         <link rel="apple-touch-icon" href="/icon-192x192.png" />
         <meta name="theme-color" content="#0ea5e9" />
-        <link 
-          href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&display=swap" 
-          rel="stylesheet" 
-        />
       </head>
-      <body className="bg-slate-50 min-h-screen">
+      <body className={`${dmSans.className} bg-slate-50 min-h-screen`}>
         {children}
       </body>
     </html>
