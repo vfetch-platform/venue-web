@@ -1,15 +1,15 @@
 'use client';
 
 import { useState } from 'react';
-import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import Layout from '@/components/Layout';
 import AIImageAnalysis from '@/components/AIImageAnalysis';
 import { CreateItemForm, ItemCategory } from '@/types';
-import { PhotoIcon, XMarkIcon } from '@heroicons/react/24/outline';
+import { XMarkIcon } from '@heroicons/react/24/outline';
 import { buttonStyles, cardStyles, inputStyles } from '@/utils/styles';
 
 import { apiClient } from '@/lib/api';
+import { useAuthStore } from '@/store/auth';
 
 const categories: ItemCategory[] = [
   'phones', 'wallets', 'keys', 'bags', 'clothing', 
@@ -18,6 +18,7 @@ const categories: ItemCategory[] = [
 
 export default function AddItemPage() {
   const router = useRouter();
+  const { venue } = useAuthStore();
   const [isLoading, setIsLoading] = useState(false);
   const [formData, setFormData] = useState<CreateItemForm>({
     title: '',
@@ -29,12 +30,11 @@ export default function AddItemPage() {
     brand: '',
     model: '',
     serialNumber: '',
-    locationFound: '',
+    locationFound: venue?.address || '',
     images: [],
   });
   const [tagInput, setTagInput] = useState('');
-  const [previewImages, setPreviewImages] = useState<string[]>([]);
-  const [useAI, setUseAI] = useState(false);
+  const [formUnlocked, setFormUnlocked] = useState(false);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
@@ -64,21 +64,7 @@ export default function AddItemPage() {
     }));
   };
 
-  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(e.target.files || []);
-    
-    // TODO: Validate file types and sizes
-    setFormData(prev => ({
-      ...prev,
-      images: files,
-    }));
-
-    // Create preview URLs
-    const previewUrls = files.map(file => URL.createObjectURL(file));
-    setPreviewImages(previewUrls);
-  };
-
-  interface GeneratedFeatures {
+interface GeneratedFeatures {
     title?: string;
     description?: string;
     category?: string; // raw string from AI, validated against ItemCategory list when applying
@@ -86,7 +72,6 @@ export default function AddItemPage() {
     brand?: string;
     model?: string;
     tags?: string[];
-    locationFound?: string;
   }
 
   const handleAIDescriptionGenerated = (features: GeneratedFeatures) => {
@@ -101,30 +86,13 @@ export default function AddItemPage() {
       brand: features.brand || prev.brand,
       model: features.model || prev.model,
       tags: features.tags?.length ? features.tags : prev.tags,
-      locationFound: features.locationFound || prev.locationFound,
+      locationFound: prev.locationFound,
     }));
+    setFormUnlocked(true);
   };
 
   const handleAIImagesSelected = (images: File[]) => {
-    setFormData(prev => ({
-      ...prev,
-      images,
-    }));
-
-    // Create preview URLs
-    const previewUrls = images.map(file => URL.createObjectURL(file));
-    setPreviewImages(previewUrls);
-  };
-
-  const handleRemoveImage = (index: number) => {
-    const newImages = formData.images?.filter((_, i) => i !== index) || [];
-    const newPreviews = previewImages.filter((_, i) => i !== index);
-    
-    setFormData(prev => ({
-      ...prev,
-      images: newImages,
-    }));
-    setPreviewImages(newPreviews);
+    setFormData(prev => ({ ...prev, images }));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -155,90 +123,19 @@ export default function AddItemPage() {
 
         {/* Form */}
         <form onSubmit={handleSubmit} className={`${cardStyles} p-6 space-y-6`}>
-          {/* Photos (moved to top so AI can prefill description) */}
+          {/* Photos */}
           <div>
-            <div className="flex justify-between items-center mb-4">
-              <label className="block text-sm font-medium text-gray-700">
-                Photos
-              </label>
-              <div className="flex items-center space-x-4">
-                <label className="flex items-center">
-                  <input
-                    type="radio"
-                    name="imageMethod"
-                    checked={useAI}
-                    onChange={() => setUseAI(true)}
-                    className="mr-2"
-                  />
-                  <span className="text-sm">AI-Assisted</span>
-                </label>
-                <label className="flex items-center">
-                  <input
-                    type="radio"
-                    name="imageMethod"
-                    checked={!useAI}
-                    onChange={() => setUseAI(false)}
-                    className="mr-2"
-                  />
-                  <span className="text-sm">Manual Upload</span>
-                </label>
-              </div>
-            </div>
-
-            {useAI ? (
-              <AIImageAnalysis
-                onDescriptionGenerated={handleAIDescriptionGenerated}
-                onImagesSelected={handleAIImagesSelected}
-              />
-            ) : (
-              <div>
-                <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
-                  <input
-                    type="file"
-                    multiple
-                    accept="image/*,.heic,.heif"
-                    onChange={handleImageChange}
-                    className="hidden"
-                    id="images"
-                  />
-                  <label htmlFor="images" className="cursor-pointer">
-                    <PhotoIcon className="mx-auto h-12 w-12 text-gray-400" />
-                    <span className="mt-2 block text-sm font-medium text-gray-900">
-                      Upload photos
-                    </span>
-                    <span className="mt-1 block text-sm text-gray-500">
-                      PNG, JPG, GIF, HEIC up to 10MB each
-                    </span>
-                  </label>
-                </div>
-
-                {/* Manual Image Previews */}
-                {previewImages.length > 0 && (
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4">
-                    {previewImages.map((url, index) => (
-                      <div key={index} className="relative">
-                        <Image
-                          src={url}
-                          alt={`Preview ${index + 1}`}
-                          width={200}
-                          height={200}
-                          className="w-full h-24 object-cover rounded-lg border"
-                        />
-                        <button
-                          type="button"
-                          onClick={() => handleRemoveImage(index)}
-                          className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1"
-                        >
-                          <XMarkIcon className="h-4 w-4" />
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
+            <label className="block text-sm font-medium text-gray-700 mb-4">
+              Photos
+            </label>
+            <AIImageAnalysis
+              onDescriptionGenerated={handleAIDescriptionGenerated}
+              onImagesSelected={handleAIImagesSelected}
+              onSkipToManual={() => setFormUnlocked(true)}
+            />
           </div>
 
+          {formUnlocked && <>
           {/* Basic Information */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
@@ -295,37 +192,20 @@ export default function AddItemPage() {
             />
           </div>
 
-          {/* Date and Location */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label htmlFor="dateFound" className="block text-sm font-medium text-gray-700 mb-1">
-                Date Found *
-              </label>
-              <input
-                type="date"
-                id="dateFound"
-                name="dateFound"
-                required
-                className={inputStyles}
-                value={formData.dateFound}
-                onChange={handleInputChange}
-              />
-            </div>
-
-            <div>
-              <label htmlFor="locationFound" className="block text-sm font-medium text-gray-700 mb-1">
-                Location Found
-              </label>
-              <input
-                type="text"
-                id="locationFound"
-                name="locationFound"
-                className={inputStyles}
-                placeholder="e.g., Table 5, Near bar counter"
-                value={formData.locationFound}
-                onChange={handleInputChange}
-              />
-            </div>
+          {/* Date Found */}
+          <div>
+            <label htmlFor="dateFound" className="block text-sm font-medium text-gray-700 mb-1">
+              Date Found *
+            </label>
+            <input
+              type="date"
+              id="dateFound"
+              name="dateFound"
+              required
+              className={inputStyles}
+              value={formData.dateFound}
+              onChange={handleInputChange}
+            />
           </div>
 
           {/* Item Details */}
@@ -425,6 +305,8 @@ export default function AddItemPage() {
               </div>
             )}
           </div>
+
+          </>}
 
           {/* Submit Buttons */}
           <div className="flex justify-end space-x-4 pt-6 border-t">
