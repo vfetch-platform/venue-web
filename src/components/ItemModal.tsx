@@ -1,0 +1,444 @@
+'use client';
+
+import { useState } from 'react';
+import Image from 'next/image';
+import { Item, ItemCategory } from '@/types';
+import {
+  XMarkIcon,
+  PhotoIcon,
+  MapPinIcon,
+  CalendarIcon,
+  TagIcon,
+} from '@heroicons/react/24/outline';
+import { buttonStyles, inputStyles } from '@/utils/styles';
+
+interface ItemModalProps {
+  item: Item | null;
+  isOpen: boolean;
+  mode: 'view' | 'edit';
+  onClose: () => void;
+  onSave?: (updatedItem: Item) => void;
+}
+
+const categories: ItemCategory[] = [
+  'phones', 'wallets', 'keys', 'bags', 'clothing', 
+  'jewelry', 'electronics', 'cards', 'documents', 'other'
+];
+
+export default function ItemModal({ item, isOpen, mode, onClose, onSave }: ItemModalProps) {
+  const [editData, setEditData] = useState<Item | null>(item);
+  const [isLoading, setIsLoading] = useState(false);
+  const [collectionStatus, setCollectionStatus] = useState<'collected_code' | 'collected_nocode' | 'collected_courier' | null>(null);
+  const collectedStatuses = new Set(['collected_code','collected_nocode','collected_courier']);
+
+  // Reset collection selection whenever a new item is opened or mode switches
+  if (editData?.id !== item?.id && item) {
+    setEditData(item);
+    setCollectionStatus(collectedStatuses.has(item.status) ? (item.status as 'collected_code' | 'collected_nocode' | 'collected_courier') : null);
+  }
+
+
+  if (!isOpen || !item) {
+    console.log('Modal not rendering - isOpen:', isOpen, 'item:', !!item);
+    return null;
+  }
+
+  const isViewMode = mode === 'view';
+  const currentData = isViewMode ? item : editData || item;
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
+    if (isViewMode) return;
+    
+    const { name, value } = e.target;
+    setEditData(prev => prev ? {
+      ...prev,
+      [name]: value,
+    } : null);
+  };
+
+
+  const handleSave = async () => {
+    if (!editData || !onSave) return;
+    setIsLoading(true);
+    try {
+      const finalData: Item = collectionStatus
+        ? { ...editData, status: collectionStatus }
+        : editData;
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      onSave(finalData);
+      onClose();
+    } catch (error) {
+      console.error('Error updating item:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'available':
+        return 'bg-green-100 text-green-800';
+      case 'claimed':
+        return 'bg-yellow-100 text-yellow-800';
+      case 'collected':
+      case 'collected_courier':
+      case 'collected_nocode':
+      case 'collected_code':
+        return 'bg-blue-100 text-blue-800';
+      case 'expired':
+        return 'bg-red-100 text-red-800';
+      default:
+        return 'bg-gray-100 text-gray-800';
+    }
+  };
+
+  return (
+    <div 
+      className="fixed inset-0 bg-slate-600 bg-opacity-50 overflow-y-auto h-full w-full z-50"
+      onClick={(e) => {
+        // Close modal when clicking on backdrop
+        if (e.target === e.currentTarget) {
+          onClose();
+        }
+      }}
+    >
+      <div 
+        className="relative top-4 mx-auto p-5 border max-w-2xl shadow-lg rounded-md bg-white"
+        onClick={(e) => {
+          // Prevent modal from closing when clicking inside the content
+          e.stopPropagation();
+        }}
+      >
+        {/* Header */}
+        <div className="flex justify-between items-center mb-6">
+          <h3 className="text-lg font-medium text-slate-900">
+            {isViewMode ? 'Item Details' : 'Edit Item'}
+          </h3>
+          <button
+            onClick={onClose}
+            className="text-slate-400 hover:text-slate-600"
+          >
+            <XMarkIcon className="w-6 h-6" />
+          </button>
+        </div>
+
+        <div className="space-y-6 max-h-96 overflow-y-auto">
+          {/* Status Badge (View only) */}
+          {isViewMode && (
+            <div className="flex justify-between items-start">
+              <span className={`inline-flex px-3 py-1 text-sm font-semibold rounded-full ${getStatusColor(currentData.status)}`}>
+                {currentData.status.replace('_', ' ').toUpperCase()}
+              </span>
+              <div className="text-sm text-gray-500">
+                <div className="flex items-center">
+                  <CalendarIcon className="h-4 w-4 mr-1" />
+                  Found: {new Date(currentData.date_found).toLocaleDateString()}
+                </div>
+                <div className="flex items-center mt-1">
+                  <TagIcon className="h-4 w-4 mr-1" />
+                  Claims: {currentData.claim_count}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Collection Section (Edit mode when claimed or already collected) */}
+          {!isViewMode && (item.status === 'claimed' || collectedStatuses.has(item.status)) && (
+            <div className="space-y-2">
+              <label className="block text-sm font-medium text-gray-700">{collectedStatuses.has(item.status) ? 'Update Collection Method' : 'Mark as Collected'}</label>
+              <div className="space-y-2 text-sm">
+                <label className="flex items-center gap-2">
+                  <input
+                    type="radio"
+                    name="collection_status"
+                    value="collected_code"
+                    onChange={() => setCollectionStatus('collected_code')}
+                    checked={collectionStatus === 'collected_code'}
+                  />
+                  <span>Collected with pickup code</span>
+                </label>
+                <label className="flex items-center gap-2">
+                  <input
+                    type="radio"
+                    name="collection_status"
+                    value="collected_nocode"
+                    onChange={() => setCollectionStatus('collected_nocode')}
+                    checked={collectionStatus === 'collected_nocode'}
+                  />
+                  <span>Collected without code</span>
+                </label>
+                <label className="flex items-center gap-2">
+                  <input
+                    type="radio"
+                    name="collection_status"
+                    value="collected_courier"
+                    onChange={() => setCollectionStatus('collected_courier')}
+                    checked={collectionStatus === 'collected_courier'}
+                  />
+                  <span>Collected by courier</span>
+                </label>
+                <p className="text-xs text-gray-500">{collectedStatuses.has(item.status) ? 'Change the collection method and save.' : 'Select a collection method then save to update status.'}</p>
+              </div>
+            </div>
+          )}
+          {/* Images */}
+          {currentData.images && currentData.images.length > 0 && (
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-3">
+                <PhotoIcon className="h-4 w-4 inline mr-1" />
+                Photos ({currentData.images.length})
+              </label>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {currentData.images.map((imageUrl, index) => (
+                  <div 
+                    key={index} 
+                    className="relative group cursor-pointer"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      // Try multiple methods to open the image
+                      try {
+                        // Method 1: Direct window.open
+                        const newTab = window.open(imageUrl, '_blank', 'noopener,noreferrer');
+                        if (!newTab) {
+                          // Method 2: Create a temporary link and click it
+                          const link = document.createElement('a');
+                          link.href = imageUrl;
+                          link.target = '_blank';
+                          link.rel = 'noopener noreferrer';
+                          document.body.appendChild(link);
+                          link.click();
+                          document.body.removeChild(link);
+                        }
+                      } catch (error) {
+                        console.error('Failed to open image:', error);
+                        // Method 3: Fallback to location.href
+                        window.location.href = imageUrl;
+                      }
+                    }}
+                  >
+                    <Image
+                      src={imageUrl}
+                      alt={`${currentData.title} - Photo ${index + 1}`}
+                      width={300}
+                      height={200}
+                      className="w-full h-32 object-cover rounded-lg border border-slate-200 shadow-sm hover:shadow-md transition-shadow"
+                      onError={(e) => {
+                        const target = e.target as HTMLImageElement;
+                        target.style.display = 'none';
+                        const parent = target.parentElement;
+                        if (parent) {
+                          const errorDiv = parent.querySelector('.error-fallback') as HTMLElement;
+                          if (errorDiv) errorDiv.classList.remove('hidden');
+                        }
+                      }}
+                    />
+                    <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-10 rounded-lg transition-all duration-200 pointer-events-none"></div>
+                    <div className="absolute bottom-2 right-2 bg-white bg-opacity-90 rounded-full px-2 py-1 text-xs font-medium text-slate-600">
+                      {index + 1}/{currentData.images.length}
+                    </div>
+                    {/* Error fallback */}
+                    <div className="error-fallback hidden absolute inset-0 bg-slate-100 rounded-lg border border-slate-200 flex items-center justify-center">
+                      <div className="text-center text-slate-500">
+                        <PhotoIcon className="h-8 w-8 mx-auto mb-1" />
+                        <p className="text-xs">Image unavailable</p>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <p className="text-xs text-slate-500 mt-2">Click on any image to view full size</p>
+            </div>
+          )}
+
+          {/* No images placeholder */}
+          {(!currentData.images || currentData.images.length === 0) && (
+            <div className="text-center py-8 text-slate-500 bg-slate-50 rounded-lg border-2 border-dashed border-slate-200">
+              <PhotoIcon className="mx-auto h-12 w-12 text-slate-300" />
+              <p className="mt-2 text-sm font-medium">No photos available</p>
+              <p className="text-xs text-slate-400 mt-1">Images help identify items more easily</p>
+            </div>
+          )}
+
+          {/* Basic Information */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Item Title
+              </label>
+              {isViewMode ? (
+                <p className="text-sm text-gray-900 font-medium">{currentData.title}</p>
+              ) : (
+                <input
+                  type="text"
+                  name="title"
+                  className={inputStyles}
+                  value={currentData.title}
+                  onChange={handleInputChange}
+                />
+              )}
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Category
+              </label>
+              {isViewMode ? (
+                <p className="text-sm text-gray-900 capitalize">{currentData.category}</p>
+              ) : (
+                <select
+                  name="category"
+                  className={inputStyles}
+                  value={currentData.category}
+                  onChange={handleInputChange}
+                >
+                  {categories.map(category => (
+                    <option key={category} value={category}>
+                      {category.charAt(0).toUpperCase() + category.slice(1)}
+                    </option>
+                  ))}
+                </select>
+              )}
+            </div>
+          </div>
+
+          {/* Description */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Description
+            </label>
+            {isViewMode ? (
+              <p className="text-sm text-gray-900">{currentData.description}</p>
+            ) : (
+              <textarea
+                name="description"
+                rows={3}
+                className={inputStyles}
+                value={currentData.description}
+                onChange={handleInputChange}
+              />
+            )}
+          </div>
+
+          {/* Location */}
+          {currentData.location_found && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                <MapPinIcon className="h-4 w-4 inline mr-1" />
+                Location Found
+              </label>
+              {isViewMode ? (
+                <p className="text-sm text-gray-900">{currentData.location_found}</p>
+              ) : (
+                <input
+                  type="text"
+                  name="location_found"
+                  className={inputStyles}
+                  value={currentData.location_found || ''}
+                  onChange={handleInputChange}
+                />
+              )}
+            </div>
+          )}
+
+          {/* Item Details */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {(currentData.color || !isViewMode) && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Color
+                </label>
+                {isViewMode ? (
+                  <p className="text-sm text-gray-900">{currentData.color}</p>
+                ) : (
+                  <input
+                    type="text"
+                    name="color"
+                    className={inputStyles}
+                    value={currentData.color || ''}
+                    onChange={handleInputChange}
+                  />
+                )}
+              </div>
+            )}
+
+            {(currentData.brand || !isViewMode) && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Brand
+                </label>
+                {isViewMode ? (
+                  <p className="text-sm text-gray-900">{currentData.brand}</p>
+                ) : (
+                  <input
+                    type="text"
+                    name="brand"
+                    className={inputStyles}
+                    value={currentData.brand || ''}
+                    onChange={handleInputChange}
+                  />
+                )}
+              </div>
+            )}
+
+            {(currentData.model || !isViewMode) && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Model
+                </label>
+                {isViewMode ? (
+                  <p className="text-sm text-gray-900">{currentData.model}</p>
+                ) : (
+                  <input
+                    type="text"
+                    name="model"
+                    className={inputStyles}
+                    value={currentData.model || ''}
+                    onChange={handleInputChange}
+                  />
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Tags */}
+          {currentData.tags.length > 0 && (
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-2">
+                Tags
+              </label>
+              <div className="flex flex-wrap gap-2">
+                {currentData.tags.map((tag, index) => (
+                  <span
+                    key={index}
+                    className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800"
+                  >
+                    {tag}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Footer */}
+        <div className="flex justify-end space-x-3 mt-6 pt-4 border-t">
+          <button
+            onClick={onClose}
+            className={buttonStyles.secondary}
+          >
+            {isViewMode ? 'Close' : 'Cancel'}
+          </button>
+          {!isViewMode && (
+            <button
+              onClick={handleSave}
+              disabled={isLoading}
+              className={buttonStyles.primary}
+            >
+              {isLoading ? 'Saving...' : 'Save Changes'}
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}

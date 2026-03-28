@@ -1,0 +1,17 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+  font-family: 'DM Sans', sans-serif;
+}
+
+/* Hide Next.js dev overlay button (the circular N button) */
+:root .__next-dev-overlay-toggle-button,
+:root [data-nextjs-dev-overlay-button],
+:root button[aria-label*="Toggle build info"],
+:root button[aria-label*="Toggle developer menu"] {
+  display: none !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+}

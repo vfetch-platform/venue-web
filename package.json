@@ -1,0 +1,42 @@
+{
+  "name": "venue-web",
+  "version": "1.0.0",
+  "main": "index.js",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint"
+  },
+  "keywords": [
+    "vfetch",
+    "venue",
+    "lost-and-found",
+    "pwa"
+  ],
+  "author": "",
+  "license": "ISC",
+  "description": "Venue staff web application for vfetch lost and found platform",
+  "dependencies": {
+    "@headlessui/react": "^2.2.6",
+    "@heroicons/react": "^2.2.0",
+    "@types/node": "^24.1.0",
+    "@types/react": "^19.1.8",
+    "@types/react-dom": "^19.1.6",
+    "autoprefixer": "^10.4.21",
+    "lucide-react": "^0.526.0",
+    "next": "^15.4.4",
+    "next-pwa": "^5.6.0",
+    "postcss": "^8.5.6",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0",
+    "typescript": "^5.8.3",
+    "zustand": "^5.0.6"
+  },
+  "devDependencies": {
+    "tailwindcss": "^3.4.17",
+    "eslint": "9.33.0",
+    "eslint-config-next": "15.4.6"
+  }
+}
