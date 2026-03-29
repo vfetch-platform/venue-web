@@ -20,7 +20,7 @@ export const ITEM_STATUSES: (ItemStatus | 'collected')[] = [
   'expired',
 ];
 
-export const COLLECTED_STATUSES: Set<ItemStatus> = new Set([
+export const COLLECTED_STATUSES: Set<ItemStatus> = new Set<ItemStatus>([
   'collected',
   'collected_code',
   'collected_nocode',
