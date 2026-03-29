@@ -86,14 +86,17 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 
   checkAuth: async () => {
+    // Already initialized — don't re-run; prevents render loops
+    if (get().isInitialized) return;
+
     set({ isLoading: true });
 
     try {
       const response = await api.auth.me();
-      
+
       if (response.success && response.data) {
         const user = response.data;
-        
+
         // Fetch venue data based on user's venue_id
         let venue = null;
         if (user.venue_id) {
@@ -106,25 +109,21 @@ export const useAuthStore = create<AuthState>((set, get) => ({
             // Venue fetch failure is non-fatal; user is still authenticated
           }
         }
-        
-        set({ 
-          user, 
+
+        set({
+          user,
           venue,
-          isAuthenticated: true, 
+          isAuthenticated: true,
           isLoading: false,
           isInitialized: true,
         });
       } else {
-        // Invalid token, clear it
-        get().logout();
-        set({ isInitialized: true });
+        // Not authenticated — set terminal unauthenticated state directly
+        set({ user: null, venue: null, isAuthenticated: false, isInitialized: true, isLoading: false });
       }
     } catch {
-      // Invalid token, clear it
-      get().logout();
-      set({ isInitialized: true });
-    } finally {
-      set({ isLoading: false });
+      // Not authenticated — set terminal unauthenticated state directly
+      set({ user: null, venue: null, isAuthenticated: false, isInitialized: true, isLoading: false });
     }
   },
 
