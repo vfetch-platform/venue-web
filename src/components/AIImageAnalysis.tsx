@@ -112,6 +112,11 @@ export default function AIImageAnalysis({ onDescriptionGenerated, onImagesSelect
     canvas.getContext('2d')?.drawImage(video, 0, 0);
     canvas.toBlob(blob => {
       if (!blob) return;
+      if (selectedImages.length >= MAX_IMAGES) {
+        alert(`You can upload up to ${MAX_IMAGES} images.`);
+        closeCamera();
+        return;
+      }
       const file = new File([blob], `camera-${Date.now()}.jpg`, { type: 'image/jpeg' });
       const url = URL.createObjectURL(file);
       const newImages = [...selectedImages, file];
@@ -123,6 +128,8 @@ export default function AIImageAnalysis({ onDescriptionGenerated, onImagesSelect
       closeCamera();
     }, 'image/jpeg', 0.92);
   }, [selectedImages, previewUrls, onImagesSelected, closeCamera]);
+
+  const MAX_IMAGES = 2;
 
   const handleImageSelection = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
@@ -140,8 +147,14 @@ export default function AIImageAnalysis({ onDescriptionGenerated, onImagesSelect
       alert('Some files were skipped. Please ensure all files are images under 10MB.');
     }
 
-    setSelectedImages(validFiles);
-    onImagesSelected(validFiles);
+    // Merge with existing selections, capped at MAX_IMAGES
+    const merged = [...selectedImages, ...validFiles].slice(0, MAX_IMAGES);
+    if (selectedImages.length + validFiles.length > MAX_IMAGES) {
+      alert(`You can upload up to ${MAX_IMAGES} images. Only the first ${MAX_IMAGES} have been kept.`);
+    }
+
+    setSelectedImages(merged);
+    onImagesSelected(merged);
 
     // Create preview URLs
     const urls = validFiles.map(file => URL.createObjectURL(file));
@@ -174,7 +187,7 @@ export default function AIImageAnalysis({ onDescriptionGenerated, onImagesSelect
     setAnalysisError(null);
 
     try {
-      const response = await api.items.extractFeatures(selectedImages[0]);
+      const response = await api.items.extractFeatures(selectedImages);
 
       if (!response.success) {
         throw new Error(response.error || 'AI feature extraction failed');
@@ -240,13 +253,14 @@ export default function AIImageAnalysis({ onDescriptionGenerated, onImagesSelect
             onChange={handleImageSelection}
             className="hidden"
             id="ai-images"
+            disabled={selectedImages.length >= MAX_IMAGES}
           />
           <SparklesIcon className="mx-auto h-12 w-12 text-blue-500" />
-          <p className="mt-2 text-sm text-gray-500">PNG, JPG, GIF, HEIC up to 10MB each</p>
+          <p className="mt-2 text-sm text-gray-500">Up to 2 images — PNG, JPG, GIF, HEIC up to 10MB each</p>
           <div className="mt-4 flex items-center justify-center gap-3">
             <label
               htmlFor="ai-images"
-              className="cursor-pointer inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700"
+              className={`inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white rounded-lg ${selectedImages.length >= MAX_IMAGES ? 'bg-blue-300 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700 cursor-pointer'}`}
             >
               <PhotoIcon className="h-4 w-4" />
               Upload photos
@@ -254,13 +268,14 @@ export default function AIImageAnalysis({ onDescriptionGenerated, onImagesSelect
             <button
               type="button"
               onClick={openCamera}
-              className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50"
+              disabled={selectedImages.length >= MAX_IMAGES}
+              className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <CameraIcon className="h-4 w-4" />
               Use camera
             </button>
           </div>
-          <p className="mt-3 text-xs text-blue-600">AI will analyze your images and generate a detailed description</p>
+          <p className="mt-3 text-xs text-blue-600">Add up to 2 images from different angles — AI analyzes both in one pass for a richer description</p>
         </div>
       </div>
 

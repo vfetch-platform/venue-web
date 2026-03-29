@@ -9,8 +9,25 @@ import { CheckCircleIcon, XCircleIcon } from '@heroicons/react/24/outline';
 function ResetPasswordContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const token = searchParams.get('token');
-  const email = searchParams.get('email');
+
+  // Read token/email from URL once, store in sessionStorage, then strip from URL
+  // so the token doesn't appear in server logs, referrer headers, or browser history.
+  const tokenFromUrl = searchParams.get('token');
+  const emailFromUrl = searchParams.get('email');
+
+  if (tokenFromUrl && emailFromUrl && typeof window !== 'undefined') {
+    sessionStorage.setItem('reset_token', tokenFromUrl);
+    sessionStorage.setItem('reset_email', emailFromUrl);
+    // Replace URL without query params so the token isn't logged/shared
+    window.history.replaceState({}, '', window.location.pathname);
+  }
+
+  const token = typeof window !== 'undefined'
+    ? (sessionStorage.getItem('reset_token') || tokenFromUrl)
+    : tokenFromUrl;
+  const email = typeof window !== 'undefined'
+    ? (sessionStorage.getItem('reset_email') || emailFromUrl)
+    : emailFromUrl;
 
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');

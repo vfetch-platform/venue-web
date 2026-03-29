@@ -27,19 +27,13 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
   login: async (email: string, password: string) => {
     set({ isLoading: true, error: null });
-    
+
     try {
       const response = await api.auth.login(email, password);
-      
+
       if (response.success && response.data) {
-        const { user, token, refreshToken } = response.data;
-        
-        // Store tokens in localStorage
-        if (typeof window !== 'undefined') {
-          localStorage.setItem('auth_token', token);
-          localStorage.setItem('refresh_token', refreshToken);
-        }
-        
+        const { user } = response.data;
+
         // Fetch venue data based on user's venue_id
         let venue = null;
         if (user.venue_id) {
@@ -48,16 +42,16 @@ export const useAuthStore = create<AuthState>((set, get) => ({
             if (venueResponse.success) {
               venue = venueResponse.data;
             }
-          } catch (venueError) {
-            console.warn('Failed to fetch venue data:', venueError);
+          } catch {
+            // Venue fetch failure is non-fatal; user is still authenticated
           }
         }
-        
-        set({ 
-          user, 
+
+        set({
+          user,
           venue,
-          isAuthenticated: true, 
-          isLoading: false 
+          isAuthenticated: true,
+          isLoading: false
         });
       } else {
         throw new Error(response.error || 'Login failed');
@@ -80,32 +74,18 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 
   logout: () => {
-    // Call logout API
-    api.auth.logout().catch(console.error);
-    
-    // Clear local state
-    set({ 
-      user: null, 
+    // Call logout API — backend clears httpOnly cookies
+    api.auth.logout().catch(() => { /* best-effort; ignore errors */ });
+
+    set({
+      user: null,
       venue: null,
-      isAuthenticated: false, 
-      error: null 
+      isAuthenticated: false,
+      error: null,
     });
-    
-    // Clear tokens from localStorage
-    if (typeof window !== 'undefined') {
-      localStorage.removeItem('auth_token');
-      localStorage.removeItem('refresh_token');
-    }
   },
 
   checkAuth: async () => {
-    const token = typeof window !== 'undefined' ? localStorage.getItem('auth_token') : null;
-    
-    if (!token) {
-      set({ isInitialized: true });
-      return;
-    }
-
     set({ isLoading: true });
 
     try {
@@ -122,8 +102,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
             if (venueResponse.success) {
               venue = venueResponse.data;
             }
-          } catch (venueError) {
-            console.warn('Failed to fetch venue data:', venueError);
+          } catch {
+            // Venue fetch failure is non-fatal; user is still authenticated
           }
         }
         
