@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import Image from 'next/image';
 import Layout from '@/components/Layout';
 import { useAuthStore } from '@/store/auth';
 import { Claim, ClaimStatus } from '@/types';
@@ -9,7 +10,6 @@ import {
   FunnelIcon,
   CheckIcon,
   XMarkIcon,
-  EyeIcon,
   ClockIcon,
   UserIcon,
 } from '@heroicons/react/24/outline';
@@ -26,6 +26,7 @@ export default function ClaimsPage() {
   const [error, setError] = useState<string | null>(null);
   const [selectedClaim, setSelectedClaim] = useState<Claim | null>(null);
   const [collectingClaim, setCollectingClaim] = useState<string | null>(null);
+  const [lightboxImage, setLightboxImage] = useState<string | null>(null);
 
   // Load claims on component mount
   // Memoized loadClaims avoids eslint missing dependency warning
@@ -311,41 +312,13 @@ export default function ClaimsPage() {
                       </div>
                     </div>
 
-                    {/* Action Buttons */}
+                    {/* Action Button */}
                     <div className="flex items-center gap-2 md:flex-col md:items-end">
-                      {claim.status === 'pending' && (
-                        <div className="flex gap-2">
-                          <button
-                            onClick={() => handleUpdateClaimStatus(claim.id, 'approved')}
-                            disabled={isLoading}
-                            className="inline-flex items-center px-2.5 sm:px-3 py-1 sm:py-1.5 border border-transparent text-[11px] sm:text-xs font-medium rounded text-white bg-green-600 hover:bg-green-700 disabled:opacity-50"
-                          >
-                            <CheckIcon className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-1" /> Approve
-                          </button>
-                          <button
-                            onClick={() => handleUpdateClaimStatus(claim.id, 'rejected')}
-                            disabled={isLoading}
-                            className="inline-flex items-center px-2.5 sm:px-3 py-1 sm:py-1.5 border border-transparent text-[11px] sm:text-xs font-medium rounded text-white bg-red-600 hover:bg-red-700 disabled:opacity-50"
-                          >
-                            <XMarkIcon className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-1" /> Reject
-                          </button>
-                        </div>
-                      )}
-                      {claim.status === 'approved' && (
-                        <button
-                          onClick={() => handleMarkItemCollected(claim.id)}
-                          disabled={collectingClaim === claim.id}
-                          className="inline-flex items-center px-2.5 sm:px-3 py-1 sm:py-1.5 border border-transparent text-[11px] sm:text-xs font-medium rounded text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50"
-                        >
-                          <CheckIcon className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-1" /> {collectingClaim === claim.id ? 'Processing...' : 'Collected'}
-                        </button>
-                      )}
                       <button
                         onClick={() => setSelectedClaim(claim)}
-                        className="text-gray-400 hover:text-gray-600 p-1"
-                        title="View details"
+                        className="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded text-white bg-primary-600 hover:bg-primary-700"
                       >
-                        <EyeIcon className="w-4 h-4" />
+                        Take Action
                       </button>
                     </div>
                   </div>
@@ -361,9 +334,7 @@ export default function ClaimsPage() {
             <div className="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
               <div className="mt-3">
                 <div className="flex justify-between items-center mb-4">
-                  <h3 className="text-lg font-medium text-gray-900">
-                    Claim Details
-                  </h3>
+                  <h3 className="text-lg font-medium text-gray-900">Claim Details</h3>
                   <button
                     onClick={() => setSelectedClaim(null)}
                     className="text-gray-400 hover:text-gray-600"
@@ -371,18 +342,36 @@ export default function ClaimsPage() {
                     <XMarkIcon className="h-6 w-6" />
                   </button>
                 </div>
+                {/* Item Images */}
+                {selectedClaim.item?.images && selectedClaim.item.images.length > 0 ? (
+                  <div className="mb-4 flex gap-2 overflow-x-auto pb-1">
+                    {selectedClaim.item.images.map((img, i) => (
+                      <button
+                        key={i}
+                        onClick={() => setLightboxImage(img)}
+                        className="relative flex-shrink-0 w-24 h-24 rounded-lg overflow-hidden bg-gray-100 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                      >
+                        <Image
+                          src={img}
+                          alt={`${selectedClaim.item?.title} ${i + 1}`}
+                          fill
+                          className="object-cover hover:opacity-90 transition-opacity"
+                        />
+                      </button>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="mb-4 rounded-lg bg-gray-100 h-24 flex items-center justify-center text-gray-400 text-sm">
+                    No image available
+                  </div>
+                )}
+
                 <div className="space-y-3 text-sm">
                   <div>
                     <span className="font-medium">Item:</span> {selectedClaim.item?.title}
                   </div>
                   <div>
-                    <span className="font-medium">Customer:</span> {selectedClaim.customer_name} {selectedClaim.user?.last_name}
-                  </div>
-                  <div>
-                    <span className="font-medium">Email:</span> {selectedClaim.customer_email}
-                  </div>
-                  <div>
-                    <span className="font-medium">Status:</span> 
+                    <span className="font-medium">Status:</span>
                     <span className={`ml-2 inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(selectedClaim.status)}`}>
                       {selectedClaim.status}
                     </span>
@@ -394,23 +383,81 @@ export default function ClaimsPage() {
                     <span className="font-medium">Created:</span> {formatDate(selectedClaim.created_at)}
                   </div>
                   {selectedClaim.search_description && (
-                    <div>
-                      <span className="font-medium">Customer&apos;s Description:</span>
-                      <p className="mt-1 text-gray-600">{selectedClaim.search_description}</p>
+                    <div className="mt-4 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                      <p className="text-xs font-semibold text-amber-700 uppercase tracking-wide mb-1">Customer&apos;s Description</p>
+                      <p className="text-sm text-amber-900 leading-relaxed">{selectedClaim.search_description}</p>
                     </div>
                   )}
                   {selectedClaim.notes && !selectedClaim.search_description && (
-                    <div>
-                      <span className="font-medium">Notes:</span>
-                      <p className="mt-1 text-gray-600 italic">&quot;{selectedClaim.notes}&quot;</p>
+                    <div className="mt-4 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                      <p className="text-xs font-semibold text-amber-700 uppercase tracking-wide mb-1">Notes</p>
+                      <p className="text-sm text-amber-900 leading-relaxed italic">&quot;{selectedClaim.notes}&quot;</p>
                     </div>
                   )}
                 </div>
+
+                {/* Modal Actions */}
+                {selectedClaim.status === 'pending' && (
+                  <div className="mt-6 flex gap-3">
+                    <button
+                      onClick={() => handleUpdateClaimStatus(selectedClaim.id, 'approved')}
+                      disabled={isLoading}
+                      className="flex-1 inline-flex justify-center items-center px-4 py-2 border border-transparent text-sm font-medium rounded text-white bg-green-600 hover:bg-green-700 disabled:opacity-50"
+                    >
+                      <CheckIcon className="w-4 h-4 mr-1.5" /> Approve
+                    </button>
+                    <button
+                      onClick={() => handleUpdateClaimStatus(selectedClaim.id, 'rejected')}
+                      disabled={isLoading}
+                      className="flex-1 inline-flex justify-center items-center px-4 py-2 border border-transparent text-sm font-medium rounded text-white bg-red-600 hover:bg-red-700 disabled:opacity-50"
+                    >
+                      <XMarkIcon className="w-4 h-4 mr-1.5" /> Reject
+                    </button>
+                  </div>
+                )}
+                {selectedClaim.status === 'approved' && (
+                  <div className="mt-6">
+                    <button
+                      onClick={() => handleMarkItemCollected(selectedClaim.id)}
+                      disabled={collectingClaim === selectedClaim.id}
+                      className="w-full inline-flex justify-center items-center px-4 py-2 border border-transparent text-sm font-medium rounded text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50"
+                    >
+                      <CheckIcon className="w-4 h-4 mr-1.5" />
+                      {collectingClaim === selectedClaim.id ? 'Processing...' : 'Mark as Collected'}
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
           </div>
         )}
       </div>
+
+      {/* Lightbox */}
+      {lightboxImage && (
+        <div
+          className="fixed inset-0 bg-black bg-opacity-90 z-[60] flex items-center justify-center"
+          onClick={() => setLightboxImage(null)}
+        >
+          <button
+            className="absolute top-4 right-4 text-white hover:text-gray-300"
+            onClick={() => setLightboxImage(null)}
+          >
+            <XMarkIcon className="h-8 w-8" />
+          </button>
+          <div
+            className="relative w-full h-full"
+            onClick={e => e.stopPropagation()}
+          >
+            <Image
+              src={lightboxImage}
+              alt="Full size"
+              fill
+              className="object-contain rounded"
+            />
+          </div>
+        </div>
+      )}
     </Layout>
   );
 }
