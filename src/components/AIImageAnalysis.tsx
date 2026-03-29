@@ -6,6 +6,7 @@ import { PhotoIcon, SparklesIcon, XMarkIcon, CheckIcon, CameraIcon } from '@hero
 import { Dialog, DialogPanel, DialogTitle } from '@headlessui/react';
 import { buttonStyles, inputStyles } from '@/utils/styles';
 import { api } from '@/services/api';
+import { AI_MAX_RETRIES, AI_MAX_IMAGES } from '@/constants/config';
 
 interface ExtractedFeaturesPayload {
   title?: string;
@@ -33,7 +34,6 @@ interface AIAnalysisResult {
   confidence?: number;
 }
 
-const MAX_RETRIES = 3;
 
 export default function AIImageAnalysis({ onDescriptionGenerated, onImagesSelected, onSkipToManual }: AIImageAnalysisProps) {
   const [selectedImages, setSelectedImages] = useState<File[]>([]);
@@ -112,8 +112,8 @@ export default function AIImageAnalysis({ onDescriptionGenerated, onImagesSelect
     canvas.getContext('2d')?.drawImage(video, 0, 0);
     canvas.toBlob(blob => {
       if (!blob) return;
-      if (selectedImages.length >= MAX_IMAGES) {
-        alert(`You can upload up to ${MAX_IMAGES} images.`);
+      if (selectedImages.length >= AI_MAX_IMAGES) {
+        alert(`You can upload up to ${AI_MAX_IMAGES} images.`);
         closeCamera();
         return;
       }
@@ -129,7 +129,6 @@ export default function AIImageAnalysis({ onDescriptionGenerated, onImagesSelect
     }, 'image/jpeg', 0.92);
   }, [selectedImages, previewUrls, onImagesSelected, closeCamera]);
 
-  const MAX_IMAGES = 2;
 
   const handleImageSelection = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
@@ -147,10 +146,10 @@ export default function AIImageAnalysis({ onDescriptionGenerated, onImagesSelect
       alert('Some files were skipped. Please ensure all files are images under 10MB.');
     }
 
-    // Merge with existing selections, capped at MAX_IMAGES
-    const merged = [...selectedImages, ...validFiles].slice(0, MAX_IMAGES);
-    if (selectedImages.length + validFiles.length > MAX_IMAGES) {
-      alert(`You can upload up to ${MAX_IMAGES} images. Only the first ${MAX_IMAGES} have been kept.`);
+    // Merge with existing selections, capped at AI_MAX_IMAGES
+    const merged = [...selectedImages, ...validFiles].slice(0, AI_MAX_IMAGES);
+    if (selectedImages.length + validFiles.length > AI_MAX_IMAGES) {
+      alert(`You can upload up to ${AI_MAX_IMAGES} images. Only the first ${AI_MAX_IMAGES} have been kept.`);
     }
 
     setSelectedImages(merged);
@@ -253,14 +252,14 @@ export default function AIImageAnalysis({ onDescriptionGenerated, onImagesSelect
             onChange={handleImageSelection}
             className="hidden"
             id="ai-images"
-            disabled={selectedImages.length >= MAX_IMAGES}
+            disabled={selectedImages.length >= AI_MAX_IMAGES}
           />
           <SparklesIcon className="mx-auto h-12 w-12 text-blue-500" />
           <p className="mt-2 text-sm text-gray-500">Up to 2 images — PNG, JPG, GIF, HEIC up to 10MB each</p>
           <div className="mt-4 flex items-center justify-center gap-3">
             <label
               htmlFor="ai-images"
-              className={`inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white rounded-lg ${selectedImages.length >= MAX_IMAGES ? 'bg-blue-300 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700 cursor-pointer'}`}
+              className={`inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white rounded-lg ${selectedImages.length >= AI_MAX_IMAGES ? 'bg-blue-300 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700 cursor-pointer'}`}
             >
               <PhotoIcon className="h-4 w-4" />
               Upload photos
@@ -268,7 +267,7 @@ export default function AIImageAnalysis({ onDescriptionGenerated, onImagesSelect
             <button
               type="button"
               onClick={openCamera}
-              disabled={selectedImages.length >= MAX_IMAGES}
+              disabled={selectedImages.length >= AI_MAX_IMAGES}
               className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <CameraIcon className="h-4 w-4" />
@@ -323,7 +322,7 @@ export default function AIImageAnalysis({ onDescriptionGenerated, onImagesSelect
             <div className="mt-4 rounded-lg bg-red-50 border border-red-200 p-4 text-center space-y-3">
               <p className="text-sm text-red-700">{analysisError}</p>
               <div className="flex items-center justify-center gap-3">
-                {retryCount < MAX_RETRIES && (
+                {retryCount < AI_MAX_RETRIES && (
                   <button
                     type="button"
                     onClick={analyzeImages}
@@ -331,7 +330,7 @@ export default function AIImageAnalysis({ onDescriptionGenerated, onImagesSelect
                     className={`${buttonStyles.primary} inline-flex items-center`}
                   >
                     <SparklesIcon className="h-4 w-4 mr-2" />
-                    {isAnalyzing ? 'Retrying…' : `Retry (${MAX_RETRIES - retryCount} left)`}
+                    {isAnalyzing ? 'Retrying…' : `Retry (${AI_MAX_RETRIES - retryCount} left)`}
                   </button>
                 )}
                 <button
@@ -342,7 +341,7 @@ export default function AIImageAnalysis({ onDescriptionGenerated, onImagesSelect
                   Fill in manually
                 </button>
               </div>
-              {retryCount >= MAX_RETRIES && (
+              {retryCount >= AI_MAX_RETRIES && (
                 <p className="text-xs text-red-500">Maximum retries reached.</p>
               )}
             </div>

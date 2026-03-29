@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import Image from 'next/image';
-import { Item, ItemCategory } from '@/types';
+import { Item } from '@/types';
 import {
   XMarkIcon,
   PhotoIcon,
@@ -11,6 +11,7 @@ import {
   TagIcon,
 } from '@heroicons/react/24/outline';
 import { buttonStyles, inputStyles } from '@/utils/styles';
+import { ITEM_CATEGORIES, COLLECTED_STATUSES } from '@/constants/items';
 
 interface ItemModalProps {
   item: Item | null;
@@ -20,21 +21,16 @@ interface ItemModalProps {
   onSave?: (updatedItem: Item) => void;
 }
 
-const categories: ItemCategory[] = [
-  'phones', 'wallets', 'keys', 'bags', 'clothing', 
-  'jewelry', 'electronics', 'cards', 'documents', 'other'
-];
 
 export default function ItemModal({ item, isOpen, mode, onClose, onSave }: ItemModalProps) {
   const [editData, setEditData] = useState<Item | null>(item);
   const [isLoading, setIsLoading] = useState(false);
   const [collectionStatus, setCollectionStatus] = useState<'collected_code' | 'collected_nocode' | 'collected_courier' | null>(null);
-  const collectedStatuses = new Set(['collected_code','collected_nocode','collected_courier']);
 
   // Reset collection selection whenever a new item is opened or mode switches
   if (editData?.id !== item?.id && item) {
     setEditData(item);
-    setCollectionStatus(collectedStatuses.has(item.status) ? (item.status as 'collected_code' | 'collected_nocode' | 'collected_courier') : null);
+    setCollectionStatus(COLLECTED_STATUSES.has(item.status) ? (item.status as 'collected_code' | 'collected_nocode' | 'collected_courier') : null);
   }
 
 
@@ -142,9 +138,9 @@ export default function ItemModal({ item, isOpen, mode, onClose, onSave }: ItemM
           )}
 
           {/* Collection Section (Edit mode when claimed or already collected) */}
-          {!isViewMode && (item.status === 'claimed' || collectedStatuses.has(item.status)) && (
+          {!isViewMode && (item.status === 'claimed' || COLLECTED_STATUSES.has(item.status)) && (
             <div className="space-y-2">
-              <label className="block text-sm font-medium text-gray-700">{collectedStatuses.has(item.status) ? 'Update Collection Method' : 'Mark as Collected'}</label>
+              <label className="block text-sm font-medium text-gray-700">{COLLECTED_STATUSES.has(item.status) ? 'Update Collection Method' : 'Mark as Collected'}</label>
               <div className="space-y-2 text-sm">
                 <label className="flex items-center gap-2">
                   <input
@@ -176,7 +172,7 @@ export default function ItemModal({ item, isOpen, mode, onClose, onSave }: ItemM
                   />
                   <span>Collected by courier</span>
                 </label>
-                <p className="text-xs text-gray-500">{collectedStatuses.has(item.status) ? 'Change the collection method and save.' : 'Select a collection method then save to update status.'}</p>
+                <p className="text-xs text-gray-500">{COLLECTED_STATUSES.has(item.status) ? 'Change the collection method and save.' : 'Select a collection method then save to update status.'}</p>
               </div>
             </div>
           )}
@@ -290,7 +286,7 @@ export default function ItemModal({ item, isOpen, mode, onClose, onSave }: ItemM
                   value={currentData.category}
                   onChange={handleInputChange}
                 >
-                  {categories.map(category => (
+                  {ITEM_CATEGORIES.map(category => (
                     <option key={category} value={category}>
                       {category.charAt(0).toUpperCase() + category.slice(1)}
                     </option>

@@ -3,6 +3,7 @@
 import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { api } from '@/services/api';
+import { ROUTES } from '@/constants/routes';
 import Link from 'next/link';
 import { CheckCircleIcon, XCircleIcon } from '@heroicons/react/24/outline';
 
@@ -81,7 +82,7 @@ function ResetPasswordContent() {
       if (response.success) {
         setStatus('success');
         setTimeout(() => {
-          router.push('/login');
+          router.push(ROUTES.LOGIN);
         }, 3000);
       } else {
         setErrorMessage(response.error || 'Failed to reset password');

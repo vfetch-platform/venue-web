@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/store/auth';
+import { ROUTES } from '@/constants/routes';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
@@ -14,7 +15,7 @@ export default function LoginPage() {
     e.preventDefault();
     try {
       await login(email, password);
-      router.push('/items');
+      router.push(ROUTES.ITEMS);
     } catch {
       // Error is handled in the store
     }

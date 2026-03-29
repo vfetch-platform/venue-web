@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import Layout from '@/components/Layout';
+import { ROUTES } from '@/constants/routes';
 import { api } from '@/services/api';
 import { useRouter } from 'next/navigation';
 import { Venue, User } from '@/types';
@@ -85,7 +86,7 @@ export default function ManageVenuePage({ params }: { params: Promise<{ id: stri
         if (!confirm('Are you sure you want to delete this venue? This action cannot be undone.')) return;
         try {
             await api.venues.adminDelete(id);
-            router.push('/admin/venues');
+            router.push(ROUTES.ADMIN_VENUES);
         } catch (err: unknown) {
             alert(err instanceof Error ? err.message : 'Failed to delete venue. (Cannot delete if there are items or staff)');
         }

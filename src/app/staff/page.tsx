@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Layout from '@/components/Layout';
+import { ROUTES } from '@/constants/routes';
 import { useAuthStore } from '@/store/auth';
 import { User } from '@/types';
 import { api } from '@/services/api';
@@ -147,7 +148,7 @@ export default function StaffPage() {
 
   useEffect(() => {
     if (isInitialized && isAuthenticated && user?.role !== 'venue_admin') {
-      router.push('/dashboard');
+      router.push(ROUTES.DASHBOARD);
     }
   }, [isInitialized, isAuthenticated, user, router]);
 

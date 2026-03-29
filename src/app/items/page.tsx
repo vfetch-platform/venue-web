@@ -4,8 +4,9 @@ import { useState, useEffect } from 'react';
 import Layout from '@/components/Layout';
 import ItemModal from '@/components/ItemModal';
 import { useAuthStore } from '@/store/auth';
-import { Item, ItemCategory, ItemStatus } from '@/types';
+import { Item, ItemStatus } from '@/types';
 import { api } from '@/services/api';
+import { ITEM_CATEGORIES, ITEM_STATUSES, COLLECTED_STATUSES } from '@/constants/items';
 import {
   MagnifyingGlassIcon,
   PlusIcon,
@@ -17,12 +18,6 @@ import { Dialog, DialogPanel, DialogTitle } from '@headlessui/react';
 import Link from 'next/link';
 import { buttonStyles, cardStyles, inputStyles } from '@/utils/styles';
 
-const categories: ItemCategory[] = [
-  'phones', 'wallets', 'keys', 'bags', 'clothing', 
-  'jewelry', 'electronics', 'cards', 'documents', 'other'
-];
-
-const statuses: (ItemStatus | 'collected')[] = ['available', 'claimed', 'collected', 'expired'];
 
 export default function ItemsPage() {
   const { user, venue, isInitialized, isAuthenticated } = useAuthStore();
@@ -225,7 +220,7 @@ export default function ItemsPage() {
                 onChange={(e) => setSelectedCategory(e.target.value)}
               >
                 <option value="">All Categories</option>
-                {categories.map(category => (
+                {ITEM_CATEGORIES.map(category => (
                   <option key={category} value={category}>
                     {category.charAt(0).toUpperCase() + category.slice(1)}
                   </option>
@@ -267,17 +262,17 @@ export default function ItemsPage() {
         {/* Clickable Status Filter Cards */}
         <div className="px-6 py-4">
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4">
-            {statuses.map(status => {
+            {ITEM_STATUSES.map(status => {
               const isGroup = status === 'collected';
               const count = isGroup
-                ? items.filter(item => ['collected_code','collected_nocode','collected_courier'].includes(item.status)).length
+                ? items.filter(item => COLLECTED_STATUSES.has(item.status)).length
                 : items.filter(item => item.status === status).length;
               const isSelected = isGroup
-                ? ['collected_code','collected_nocode','collected_courier'].every(s => selectedStatuses.has(s as ItemStatus))
+                ? Array.from(COLLECTED_STATUSES).every(s => selectedStatuses.has(s))
                 : selectedStatuses.has(status as ItemStatus);
               const toggle = () => {
                 if (isGroup) {
-                  const variants: ItemStatus[] = ['collected_code','collected_nocode','collected_courier'];
+                  const variants = Array.from(COLLECTED_STATUSES) as ItemStatus[];
                   setSelectedStatuses(prev => {
                     const next = new Set(prev);
                     const allIncluded = variants.every(v => next.has(v));
