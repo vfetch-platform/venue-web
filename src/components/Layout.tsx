@@ -49,10 +49,11 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     }
   }
 
-  // Check auth on app initialization
+  // Check auth once on mount only
   useEffect(() => {
     checkAuth();
-  }, [checkAuth]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Redirect to login when unauthenticated
   useEffect(() => {
