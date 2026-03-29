@@ -20,11 +20,11 @@ import {
 } from '@heroicons/react/24/outline';
 
 const baseNavigation = [
-  { name: 'Dashboard', href: ROUTES.DASHBOARD, icon: ChartBarIcon },
-  { name: 'Items', href: ROUTES.ITEMS, icon: HomeIcon },
-  { name: 'Claims', href: ROUTES.CLAIMS, icon: ClipboardDocumentListIcon },
-  { name: 'Audit Log', href: ROUTES.AUDIT, icon: DocumentTextIcon },
-  { name: 'Profile', href: ROUTES.PROFILE, icon: UserCircleIcon },
+  { name: 'Dashboard', href: ROUTES.DASHBOARD as string, icon: ChartBarIcon },
+  { name: 'Items', href: ROUTES.ITEMS as string, icon: HomeIcon },
+  { name: 'Claims', href: ROUTES.CLAIMS as string, icon: ClipboardDocumentListIcon },
+  { name: 'Audit Log', href: ROUTES.AUDIT as string, icon: DocumentTextIcon },
+  { name: 'Profile', href: ROUTES.PROFILE as string, icon: UserCircleIcon },
 ];
 
 const adminNavigation = [
