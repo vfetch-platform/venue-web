@@ -5,16 +5,14 @@ import { useRouter } from 'next/navigation';
 import Layout from '@/components/Layout';
 import AIImageAnalysis from '@/components/AIImageAnalysis';
 import { CreateItemForm, ItemCategory } from '@/types';
+import { ITEM_CATEGORIES } from '@/constants/items';
+import { ROUTES } from '@/constants/routes';
 import { XMarkIcon } from '@heroicons/react/24/outline';
 import { buttonStyles, cardStyles, inputStyles } from '@/utils/styles';
 
 import { api } from '@/services/api';
 import { useAuthStore } from '@/store/auth';
 
-const categories: ItemCategory[] = [
-  'phones', 'wallets', 'keys', 'bags', 'clothing', 
-  'jewelry', 'electronics', 'cards', 'documents', 'other'
-];
 
 export default function AddItemPage() {
   const router = useRouter();
@@ -79,7 +77,7 @@ interface GeneratedFeatures {
       ...prev,
       title: features.title || prev.title,
       description: features.description || prev.description,
-      category: (features.category && categories.includes(features.category as ItemCategory)
+      category: (features.category && ITEM_CATEGORIES.includes(features.category as ItemCategory)
         ? features.category as ItemCategory
         : prev.category),
       color: features.color || prev.color,
@@ -101,7 +99,7 @@ interface GeneratedFeatures {
 
     try {
       await api.items.create(formData);
-      router.push('/items');
+      router.push(ROUTES.ITEMS);
     } catch (error) {
       console.error('Error creating item:', error);
       // TODO: Show proper error message to user
@@ -166,7 +164,7 @@ interface GeneratedFeatures {
                 value={formData.category}
                 onChange={handleInputChange}
               >
-                {categories.map(category => (
+                {ITEM_CATEGORIES.map(category => (
                   <option key={category} value={category}>
                     {category.charAt(0).toUpperCase() + category.slice(1)}
                   </option>

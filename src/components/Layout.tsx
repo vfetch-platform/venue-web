@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useAuthStore } from '@/store/auth';
+import { ROUTES } from '@/constants/routes';
 import { useState, useEffect } from 'react';
 import {
   HomeIcon,
@@ -19,16 +20,16 @@ import {
 } from '@heroicons/react/24/outline';
 
 const baseNavigation = [
-  { name: 'Dashboard', href: '/dashboard', icon: ChartBarIcon },
-  { name: 'Items', href: '/items', icon: HomeIcon },
-  { name: 'Claims', href: '/claims', icon: ClipboardDocumentListIcon },
-  { name: 'Audit Log', href: '/audit', icon: DocumentTextIcon },
-  { name: 'Profile', href: '/profile', icon: UserCircleIcon },
+  { name: 'Dashboard', href: ROUTES.DASHBOARD as string, icon: ChartBarIcon },
+  { name: 'Items', href: ROUTES.ITEMS as string, icon: HomeIcon },
+  { name: 'Claims', href: ROUTES.CLAIMS as string, icon: ClipboardDocumentListIcon },
+  { name: 'Audit Log', href: ROUTES.AUDIT as string, icon: DocumentTextIcon },
+  { name: 'Profile', href: ROUTES.PROFILE as string, icon: UserCircleIcon },
 ];
 
 const adminNavigation = [
   ...baseNavigation,
-  { name: 'Admin', href: '/admin', icon: CogIcon },
+  { name: 'Admin', href: ROUTES.ADMIN, icon: CogIcon },
 ];
 
 export default function Layout({ children }: { children: React.ReactNode }) {
@@ -42,9 +43,9 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     // Insert Staff link before Profile
     const profileIndex = navigation.findIndex(n => n.name === 'Profile');
     if (profileIndex !== -1) {
-      navigation.splice(profileIndex, 0, { name: 'Staff', href: '/staff', icon: UsersIcon });
+      navigation.splice(profileIndex, 0, { name: 'Staff', href: ROUTES.STAFF, icon: UsersIcon });
     } else {
-      navigation.push({ name: 'Staff', href: '/staff', icon: UsersIcon });
+      navigation.push({ name: 'Staff', href: ROUTES.STAFF, icon: UsersIcon });
     }
   }
 
@@ -55,12 +56,12 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 
   // Redirect to login when unauthenticated
   useEffect(() => {
-    if (isInitialized && !isAuthenticated && pathname !== '/login') {
-      router.replace('/login');
+    if (isInitialized && !isAuthenticated && pathname !== ROUTES.LOGIN) {
+      router.replace(ROUTES.LOGIN);
     }
   }, [isAuthenticated, isInitialized, pathname, router]);
 
-  if (pathname === '/login') {
+  if (pathname === ROUTES.LOGIN) {
     return children;
   }
 
@@ -80,7 +81,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 
   const handleSignOut = () => {
     logout();
-    router.replace('/login');
+    router.replace(ROUTES.LOGIN);
   };
 
   const getInitials = () => {

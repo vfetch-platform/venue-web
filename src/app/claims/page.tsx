@@ -5,6 +5,7 @@ import Image from 'next/image';
 import Layout from '@/components/Layout';
 import { useAuthStore } from '@/store/auth';
 import { Claim, ClaimStatus } from '@/types';
+import { CLAIM_STATUSES } from '@/constants/claims';
 import { api } from '@/services/api';
 import {
   FunnelIcon,
@@ -15,8 +16,6 @@ import {
 } from '@heroicons/react/24/outline';
 import {cardStyles } from '@/utils/styles';
 
-// Status arrays used in filtering & stats
-const statStatuses: ClaimStatus[] = ['pending','approved','collected','rejected'];
 
 export default function ClaimsPage() {
   const { venue } = useAuthStore();
@@ -199,7 +198,7 @@ export default function ClaimsPage() {
             </h3>
           </div>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            {statStatuses.map((status) => {
+            {CLAIM_STATUSES.map((status) => {
               const isSelected = selectedStatuses.has(status);
               const count = claims.filter(c => c.status === status).length;
               return (

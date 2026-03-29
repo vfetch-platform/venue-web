@@ -1,6 +1,8 @@
 'use client';
 
 import Layout from '@/components/Layout';
+import { MONTH_NAMES, COLLECTED_STATUSES } from '@/constants/items';
+import { DASHBOARD_FETCH_LIMIT } from '@/constants/config';
 import { useAuthStore } from '@/store/auth';
 import {
   ChartBarIcon,
@@ -62,7 +64,6 @@ function timeAgo(iso: string): string {
   return `${months} month${months > 1 ? 's' : ''} ago`;
 }
 
-const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
 function buildDashboardData(items: Item[], claims: Claim[]): DashboardData {
   // ── Stat counts (single pass) ────────────────────────────────────────
@@ -71,7 +72,7 @@ function buildDashboardData(items: Item[], claims: Claim[]): DashboardData {
   for (const i of items) {
     if (i.status === 'available') availableItems++;
     else if (i.status === 'claimed') claimedItems++;
-    else if (i.status === 'collected' || i.status === 'collected_code' || i.status === 'collected_nocode' || i.status === 'collected_courier') collectedItems++;
+    else if (COLLECTED_STATUSES.has(i.status)) collectedItems++;
     else if (i.status === 'expired') expiredItems++;
   }
 
@@ -336,8 +337,8 @@ export default function DashboardPage() {
       setError(null);
       try {
         const [itemsRes, claimsRes] = await Promise.all([
-          api.items.getByVenue(venue!.id, { limit: 100 }),
-          api.claims.getByVenue(venue!.id, { limit: 100 }),
+          api.items.getByVenue(venue!.id, { limit: DASHBOARD_FETCH_LIMIT }),
+          api.claims.getByVenue(venue!.id, { limit: DASHBOARD_FETCH_LIMIT }),
         ]);
 
         if (cancelled) return;

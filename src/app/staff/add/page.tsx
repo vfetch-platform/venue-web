@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Layout from '@/components/Layout';
+import { ROUTES } from '@/constants/routes';
 import { useAuthStore } from '@/store/auth';
 import { api } from '@/services/api';
 import { ChevronLeftIcon } from '@heroicons/react/24/outline';
@@ -41,7 +42,7 @@ export default function AddStaffPage() {
         await api.venues.createStaff(venueId, formData);
         setSuccess('Staff member created successfully!');
         setTimeout(() => {
-            router.push('/staff');
+            router.push(ROUTES.STAFF);
         }, 1500);
     } catch (err) {
         setError((err as { message?: string }).message || 'Failed to create staff member');
