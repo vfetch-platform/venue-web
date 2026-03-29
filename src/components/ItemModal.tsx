@@ -39,7 +39,6 @@ export default function ItemModal({ item, isOpen, mode, onClose, onSave }: ItemM
 
 
   if (!isOpen || !item) {
-    console.log('Modal not rendering - isOpen:', isOpen, 'item:', !!item);
     return null;
   }
 

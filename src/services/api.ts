@@ -26,26 +26,36 @@ class ApiError extends Error {
   }
 }
 
-// Helper function to get auth token
-const getAuthToken = (): string | null => {
-  if (typeof window !== 'undefined') {
-    return localStorage.getItem('auth_token');
-  }
-  return null;
-};
-
 // Helper function to make API requests
+// Cookies (access_token, refresh_token) are httpOnly and sent automatically by the browser.
+
+// Tracks an in-flight refresh so concurrent 401s share one refresh attempt.
+let refreshPromise: Promise<void> | null = null;
+
+async function attemptTokenRefresh(): Promise<void> {
+  if (!refreshPromise) {
+    refreshPromise = fetch(`${API_BASE_URL}/venue-auth/refresh`, {
+      method: 'POST',
+      credentials: 'include',
+    }).then(async (res) => {
+      if (!res.ok) throw new Error('refresh_failed');
+    }).finally(() => {
+      refreshPromise = null;
+    });
+  }
+  return refreshPromise;
+}
+
 async function apiRequest<T>(
   endpoint: string,
-  options: RequestInit = {}
+  options: RequestInit = {},
+  isRetry = false
 ): Promise<T> {
-  const token = getAuthToken();
-
   const isFormData = options.body instanceof FormData;
   const config: RequestInit = {
+    credentials: 'include',
     headers: {
       ...(!isFormData && { 'Content-Type': 'application/json' }),
-      ...(token && { Authorization: `Bearer ${token}` }),
       ...options.headers,
     },
     ...options,
@@ -53,6 +63,15 @@ async function apiRequest<T>(
 
   const response = await fetch(`${API_BASE_URL}${endpoint}`, config);
   const data = await response.json();
+
+  if (response.status === 401 && !isRetry && !endpoint.includes('/venue-auth/')) {
+    try {
+      await attemptTokenRefresh();
+      return apiRequest<T>(endpoint, options, true);
+    } catch {
+      // Refresh failed — fall through to throw the original 401
+    }
+  }
 
   if (!response.ok) {
     throw new ApiError(
@@ -83,13 +102,6 @@ export const api = {
 
     me: async () => {
       return apiRequest<ApiResponse<User>>('/venue-auth/me');
-    },
-
-    refresh: async (refreshToken: string) => {
-      return apiRequest<ApiResponse<{ token: string }>>('/venue-auth/refresh', {
-        method: 'POST',
-        body: JSON.stringify({ refreshToken }),
-      });
     },
 
     register: async (userData: {
@@ -276,22 +288,14 @@ export const api = {
       return apiRequest<ApiResponse<PaginatedResponse<Item>>>(`/items/venue/${venueId}${queryString}`);
     },
 
-    // Extract features from uploaded image
-    extractFeatures: async (image: File) => {
+    // Extract features from 1–2 images in a single AI call
+    extractFeatures: async (images: File[]) => {
       const formData = new FormData();
-      formData.append('image', image);
-
-      const token = getAuthToken();
-      if (!token) {
-        throw new ApiError('Access token is missing', 401);
-      }
+      images.forEach(img => formData.append('image', img));
 
       return apiRequest<ApiResponse<ExtractedItemFeatures>>('/items/extract-features', {
         method: 'POST',
         body: formData,
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
       });
     },
   },
@@ -346,23 +350,9 @@ export const api = {
       const formData = new FormData();
       formData.append('image', file);
 
-      const token = getAuthToken();
-      return fetch(`${API_BASE_URL}/upload/image`, {
+      return apiRequest<ApiResponse<{ url: string }>>('/upload/image', {
         method: 'POST',
-        headers: {
-          ...(token && { Authorization: `Bearer ${token}` }),
-        },
         body: formData,
-      }).then(async (response) => {
-        const data = await response.json();
-        if (!response.ok) {
-          throw new ApiError(
-            data.error || 'Upload failed',
-            response.status,
-            data
-          );
-        }
-        return data;
       });
     },
   },
