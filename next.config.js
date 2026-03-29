@@ -3,9 +3,8 @@ const nextConfig = {
   reactStrictMode: true,
   images: {
     domains: [
-      'localhost', 
-      'api.vfetch.com',
-      'vfetch-mvp-images-test.s3.eu-west-1.amazonaws.com', // Added S3 bucket
+      'localhost',
+      'images.vfetch.co.uk',
     ],
   },
   async rewrites() {
