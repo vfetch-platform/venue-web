@@ -6,6 +6,7 @@ import { api } from '@/services/api';
 import { cardStyles, inputStyles } from '@/utils/styles';
 import {
   FunnelIcon,
+  ChevronDownIcon,
 } from '@heroicons/react/24/outline';
 
 interface AuditEntry {
@@ -81,15 +82,18 @@ export default function AuditPage() {
           <form onSubmit={handleFilter} className="flex flex-wrap gap-3 items-end">
             <div>
               <label className="block text-xs font-medium text-slate-600 mb-1">Entity Type</label>
-              <select
-                value={entityTypeFilter}
-                onChange={(e) => setEntityTypeFilter(e.target.value)}
-                className={inputStyles}
-              >
-                <option value="">All</option>
-                <option value="item">Items</option>
-                <option value="claim">Claims</option>
-              </select>
+              <div className="relative">
+                <select
+                  value={entityTypeFilter}
+                  onChange={(e) => setEntityTypeFilter(e.target.value)}
+                  className={`${inputStyles} appearance-none pr-8`}
+                >
+                  <option value="">All</option>
+                  <option value="item">Items</option>
+                  <option value="claim">Claims</option>
+                </select>
+                <ChevronDownIcon className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+              </div>
             </div>
             <div className="flex-1 min-w-[200px]">
               <label className="block text-xs font-medium text-slate-600 mb-1">Entity ID</label>

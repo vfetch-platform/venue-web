@@ -1,6 +1,7 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import Image from 'next/image';
 import { Item } from '@/types';
 import {
@@ -24,8 +25,24 @@ interface ItemModalProps {
 
 export default function ItemModal({ item, isOpen, mode, onClose, onSave }: ItemModalProps) {
   const [editData, setEditData] = useState<Item | null>(item);
+  const closeButtonRef = useRef<HTMLButtonElement>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [collectionStatus, setCollectionStatus] = useState<'collected_code' | 'collected_nocode' | 'collected_courier' | null>(null);
+
+  // Close on Escape
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, onClose]);
+
+  // Focus close button when modal opens
+  useEffect(() => {
+    if (isOpen) closeButtonRef.current?.focus();
+  }, [isOpen]);
 
   // Reset collection selection whenever a new item is opened or mode switches
   if (editData?.id !== item?.id && item) {
@@ -87,37 +104,37 @@ export default function ItemModal({ item, isOpen, mode, onClose, onSave }: ItemM
     }
   };
 
-  return (
-    <div 
-      className="fixed inset-0 bg-slate-600 bg-opacity-50 overflow-y-auto h-full w-full z-50"
+  return createPortal(
+    <div
+      className="fixed inset-0 bg-slate-600 bg-opacity-50 flex items-center justify-center z-50 p-4"
       onClick={(e) => {
-        // Close modal when clicking on backdrop
-        if (e.target === e.currentTarget) {
-          onClose();
-        }
+        if (e.target === e.currentTarget) onClose();
       }}
+      aria-hidden="true"
     >
-      <div 
-        className="relative top-4 mx-auto p-5 border max-w-2xl shadow-lg rounded-md bg-white"
-        onClick={(e) => {
-          // Prevent modal from closing when clicking inside the content
-          e.stopPropagation();
-        }}
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="item-modal-title"
+        className="relative w-full max-w-2xl p-5 shadow-lg rounded-md bg-white max-h-[90vh] overflow-y-auto"
+        onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
         <div className="flex justify-between items-center mb-6">
-          <h3 className="text-lg font-medium text-slate-900">
+          <h3 id="item-modal-title" className="text-lg font-medium text-slate-900">
             {isViewMode ? 'Item Details' : 'Edit Item'}
           </h3>
           <button
+            ref={closeButtonRef}
             onClick={onClose}
-            className="text-slate-400 hover:text-slate-600"
+            aria-label="Close"
+            className="text-slate-400 hover:text-slate-600 focus:outline-none focus:ring-2 focus:ring-slate-400 rounded"
           >
             <XMarkIcon className="w-6 h-6" />
           </button>
         </div>
 
-        <div className="space-y-6 max-h-96 overflow-y-auto">
+        <div className="space-y-6">
           {/* Status Badge (View only) */}
           {isViewMode && (
             <div className="flex justify-between items-start">
@@ -434,6 +451,7 @@ export default function ItemModal({ item, isOpen, mode, onClose, onSave }: ItemM
           )}
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

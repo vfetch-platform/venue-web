@@ -283,11 +283,9 @@ export default function ProfilePage() {
         </div>
 
         {/* Success Message */}
-        {!isEditing && !error && (
-          <div className="text-center text-sm text-gray-600">
-            Profile information is connected to the backend API
-          </div>
-        )}
+        <div className="text-center text-xs text-gray-400 pt-2 border-t border-gray-100">
+          © {new Date().getFullYear()} VFetch. All rights reserved.
+        </div>
       </div>
     </Layout>
   );

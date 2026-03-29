@@ -13,4 +13,5 @@ export const ROUTES = {
   ADMIN_VENUES: '/admin/venues',
   ADMIN_VENUES_NEW: '/admin/venues/new',
   RESET_PASSWORD: '/reset-password',
+  SUPPORT: '/support',
 } as const;

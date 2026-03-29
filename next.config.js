@@ -1,6 +1,7 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
+  devIndicators: false,
   images: {
     domains: [
       'localhost',
@@ -17,6 +18,7 @@ const nextConfig = {
   },
 };
 
+// eslint-disable-next-line @typescript-eslint/no-require-imports
 const withPWA = require('next-pwa')({
   dest: 'public',
   register: true,
