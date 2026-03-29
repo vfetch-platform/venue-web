@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import Image from 'next/image';
 import Layout from '@/components/Layout';
 import { useAuthStore } from '@/store/auth';
@@ -11,8 +12,6 @@ import {
   FunnelIcon,
   CheckIcon,
   XMarkIcon,
-  ClockIcon,
-  UserIcon,
 } from '@heroicons/react/24/outline';
 import {cardStyles } from '@/utils/styles';
 
@@ -35,6 +34,20 @@ export default function ClaimsPage() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [venue]);
+
+  // Close modals on Escape
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return;
+      if (lightboxImage) {
+        setLightboxImage(null);
+      } else if (selectedClaim) {
+        setSelectedClaim(null);
+      }
+    };
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [lightboxImage, selectedClaim]);
 
   const loadClaims = async (): Promise<void> => {
     if (!venue) return;
@@ -202,12 +215,13 @@ export default function ClaimsPage() {
               const isSelected = selectedStatuses.has(status);
               const count = claims.filter(c => c.status === status).length;
               return (
-                <div
+                <button
                   key={status}
                   onClick={() => toggleStatusCard(status)}
-                  className={`cursor-pointer p-3 sm:p-4 rounded-lg border-2 transition-all duration-200 text-center ${
-                    isSelected 
-                      ? `${getCardAccent(status)} bg-opacity-10 border-opacity-50` 
+                  aria-pressed={isSelected}
+                  className={`p-3 sm:p-4 rounded-lg border-2 transition-all duration-200 text-center w-full focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-slate-400 ${
+                    isSelected
+                      ? `${getCardAccent(status)} bg-opacity-10 border-opacity-50`
                       : 'border-gray-200 hover:border-gray-300'
                   }`}
                 >
@@ -217,7 +231,7 @@ export default function ClaimsPage() {
                   <div className={`text-xs sm:text-sm capitalize ${isSelected ? '' : 'text-gray-500'}`}>
                     {status}
                   </div>
-                </div>
+                </button>
               );
             })}
           </div>
@@ -269,76 +283,84 @@ export default function ClaimsPage() {
           
           {/* Claims List */}
           {!isLoading && !error && filteredClaims.length > 0 && (
-            <ul className="divide-y divide-gray-200">
-              {filteredClaims.map((claim) => (
-                <li key={claim.id} className="p-4 sm:p-6 hover:bg-gray-50">
-                  <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-start gap-3">
-                        <div className="w-10 h-10 bg-primary-100 rounded-full flex items-center justify-center flex-shrink-0">
-                          <UserIcon className="w-5 h-5 text-primary-600" />
+            <div className="p-4 space-y-3">
+              {filteredClaims.map((claim) => {
+                const firstImage = claim.item?.images?.[0];
+                return (
+                  <div
+                    key={claim.id}
+                    className="flex items-center gap-5 p-4 rounded-xl border border-gray-200 bg-white hover:shadow-md hover:border-gray-300 transition-all duration-200"
+                  >
+                    {/* Thumbnail */}
+                    <div className="relative w-24 h-24 rounded-xl overflow-hidden bg-gray-100 shrink-0">
+                      {firstImage ? (
+                        <Image
+                          src={firstImage}
+                          alt={claim.item?.title || 'Item'}
+                          fill
+                          className="object-cover"
+                        />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center text-gray-300 text-xs">
+                          No image
                         </div>
-                        <div className="min-w-0 flex-1">
-                          <div className="flex items-center gap-2 mb-1">
-                            <h4 className="text-sm font-semibold text-gray-900 truncate">
-                              {claim.item?.title || 'Unknown Item'}
-                            </h4>
-                            <span className={`shrink-0 inline-flex px-2 py-0.5 text-xs font-semibold rounded-full ${getStatusColor(claim.status)}`}>
-                              {claim.status}
-                            </span>
-                          </div>
-                          <p className="text-xs text-gray-500 mb-2 line-clamp-2">
-                            {claim.item?.description || 'No description available'}
-                          </p>
-                          <div className="flex items-center text-xs text-gray-500 space-x-4">
-                            <span className="flex items-center">
-                              <ClockIcon className="w-3 h-3 mr-1" />
-                              {formatDate(claim.created_at)}
-                            </span>
-                            <span>Code: {claim.pickup_code}</span>
-                          </div>
-                          {claim.search_description && (
-                            <p className="mt-2 text-xs text-gray-600">
-                              <span className="font-medium">Lost item:</span> {claim.search_description}
-                            </p>
-                          )}
-                          {claim.notes && !claim.search_description && (
-                            <p className="mt-2 text-xs text-gray-600 italic">
-                              &quot;{claim.notes}&quot;
-                            </p>
-                          )}
-                        </div>
+                      )}
+                    </div>
+
+                    {/* Info */}
+                    <div className="flex-1 min-w-0 space-y-2">
+                      <p className="text-base font-semibold text-gray-900 truncate">
+                        {claim.item?.title || 'Unknown Item'}
+                      </p>
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm text-gray-500">Status</span>
+                        <span className={`inline-flex px-2.5 py-0.5 text-xs font-semibold rounded-full capitalize ${getStatusColor(claim.status)}`}>
+                          {claim.status}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm text-gray-500">Submitted at</span>
+                        <span className="text-sm font-medium text-gray-800">{formatDate(claim.created_at)}</span>
                       </div>
                     </div>
 
-                    {/* Action Button */}
-                    <div className="flex items-center gap-2 md:flex-col md:items-end">
-                      <button
-                        onClick={() => setSelectedClaim(claim)}
-                        className="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded text-white bg-primary-600 hover:bg-primary-700"
-                      >
-                        Take Action
-                      </button>
-                    </div>
+                    {/* Action */}
+                    <button
+                      onClick={() => setSelectedClaim(claim)}
+                      className="shrink-0 inline-flex items-center px-4 py-2 text-sm font-medium rounded-lg text-white bg-primary-600 hover:bg-primary-700 transition-colors"
+                    >
+                      Take Action
+                    </button>
                   </div>
-                </li>
-              ))}
-            </ul>
+                );
+              })}
+            </div>
           )}
         </div>
 
         {/* Claim Detail Modal */}
-        {selectedClaim && (
-          <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-            <div className="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+        {selectedClaim && createPortal(
+          <div
+            className="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-[60] p-4"
+            aria-hidden="true"
+            onClick={(e) => { if (e.target === e.currentTarget) setSelectedClaim(null); }}
+          >
+            <div
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="claim-modal-title"
+              className="relative mx-auto p-5 border w-96 shadow-lg rounded-md bg-white max-h-[90vh] overflow-y-auto"
+              onClick={(e) => e.stopPropagation()}
+            >
               <div className="mt-3">
                 <div className="flex justify-between items-center mb-4">
-                  <h3 className="text-lg font-medium text-gray-900">Claim Details</h3>
+                  <h3 id="claim-modal-title" className="text-lg font-medium text-gray-900">Claim Details</h3>
                   <button
                     onClick={() => setSelectedClaim(null)}
-                    className="text-gray-400 hover:text-gray-600"
+                    aria-label="Close"
+                    className="p-1.5 rounded-full text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors focus:outline-none focus:ring-2 focus:ring-slate-400"
                   >
-                    <XMarkIcon className="h-6 w-6" />
+                    <XMarkIcon className="h-5 w-5" />
                   </button>
                 </div>
                 {/* Item Images */}
@@ -365,30 +387,32 @@ export default function ClaimsPage() {
                   </div>
                 )}
 
-                <div className="space-y-3 text-sm">
-                  <div>
-                    <span className="font-medium">Item:</span> {selectedClaim.item?.title}
-                  </div>
-                  <div>
-                    <span className="font-medium">Status:</span>
-                    <span className={`ml-2 inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(selectedClaim.status)}`}>
+                <div className="space-y-4 text-sm">
+                  {/* Item name + status */}
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="font-semibold text-gray-900 text-base">{selectedClaim.item?.title}</span>
+                    <span className={`shrink-0 inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(selectedClaim.status)}`}>
                       {selectedClaim.status}
                     </span>
                   </div>
-                  <div>
-                    <span className="font-medium">Pickup Code:</span> {selectedClaim.pickup_code}
-                  </div>
-                  <div>
-                    <span className="font-medium">Created:</span> {formatDate(selectedClaim.created_at)}
-                  </div>
+
+                  {/* Item description */}
+                  {selectedClaim.item?.description && (
+                    <div className="p-3 bg-gray-50 border border-gray-200 rounded-lg">
+                      <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Item Description</p>
+                      <p className="text-sm text-gray-700 leading-relaxed">{selectedClaim.item.description}</p>
+                    </div>
+                  )}
+
+                  {/* Customer's description */}
                   {selectedClaim.search_description && (
-                    <div className="mt-4 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                    <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg">
                       <p className="text-xs font-semibold text-amber-700 uppercase tracking-wide mb-1">Customer&apos;s Description</p>
                       <p className="text-sm text-amber-900 leading-relaxed">{selectedClaim.search_description}</p>
                     </div>
                   )}
                   {selectedClaim.notes && !selectedClaim.search_description && (
-                    <div className="mt-4 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                    <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg">
                       <p className="text-xs font-semibold text-amber-700 uppercase tracking-wide mb-1">Notes</p>
                       <p className="text-sm text-amber-900 leading-relaxed italic">&quot;{selectedClaim.notes}&quot;</p>
                     </div>
@@ -429,17 +453,17 @@ export default function ClaimsPage() {
               </div>
             </div>
           </div>
-        )}
+        , document.body)}
       </div>
 
       {/* Lightbox */}
-      {lightboxImage && (
+      {lightboxImage && createPortal(
         <div
           className="fixed inset-0 bg-black bg-opacity-90 z-[60] flex items-center justify-center"
           onClick={() => setLightboxImage(null)}
         >
           <button
-            className="absolute top-4 right-4 text-white hover:text-gray-300"
+            className="absolute top-4 right-4 z-10 text-white hover:text-gray-300"
             onClick={() => setLightboxImage(null)}
           >
             <XMarkIcon className="h-8 w-8" />
@@ -456,7 +480,7 @@ export default function ClaimsPage() {
             />
           </div>
         </div>
-      )}
+      , document.body)}
     </Layout>
   );
 }
