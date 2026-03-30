@@ -240,46 +240,76 @@ export default function StaffPage() {
 
   return (
     <Layout>
-      <div className="bg-white shadow rounded-lg p-6">
-        <div className="flex justify-between items-center mb-6">
-          <h1 className="text-2xl font-bold text-gray-900 flex items-center">
-            <UserGroupIcon className="h-8 w-8 mr-3 text-gray-500" />
+      <div className="bg-white shadow rounded-lg p-4 sm:p-6">
+        <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
+          <h1 className="text-xl sm:text-2xl font-bold text-gray-900 flex items-center">
+            <UserGroupIcon className="h-6 w-6 sm:h-8 sm:w-8 mr-2 sm:mr-3 text-gray-500 shrink-0" />
             Staff Management
           </h1>
           <Link
             href="/staff/add"
-            className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+            className="inline-flex items-center px-3 sm:px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-slate-900 hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-slate-500"
           >
-            <PlusIcon className="-ml-1 mr-2 h-5 w-5" aria-hidden="true" />
-            Add Staff Member
+            <PlusIcon className="-ml-1 mr-2 h-4 w-4 sm:h-5 sm:w-5" aria-hidden="true" />
+            Add Staff
           </Link>
         </div>
 
         {error && (
-            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded mb-6">
-                {error}
-            </div>
+          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded mb-6 text-sm">
+            {error}
+          </div>
         )}
 
-        <div className="overflow-x-auto">
+        {/* Mobile cards */}
+        <ul className="divide-y divide-gray-200 md:hidden">
+          {staff.map((member) => (
+            <li key={member.id} className="py-4 flex items-center gap-3">
+              <div className="flex-shrink-0 h-10 w-10 bg-gray-100 rounded-full flex items-center justify-center text-gray-500 font-bold text-sm">
+                {member.first_name[0]}{member.last_name[0]}
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="text-sm font-medium text-gray-900 truncate">
+                  {member.first_name} {member.last_name}
+                </div>
+                <div className="text-xs text-gray-500 truncate">{member.email}</div>
+                <div className="flex items-center gap-2 mt-1">
+                  <span className={`px-2 text-xs leading-5 font-semibold rounded-full ${member.is_active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                    {member.is_active ? 'Active' : 'Inactive'}
+                  </span>
+                  <span className="text-xs text-gray-500 capitalize flex items-center">
+                    {member.role === 'venue_admin' && <ShieldCheckIcon className="w-3 h-3 mr-0.5 text-indigo-500" />}
+                    {member.role.replace('_', ' ')}
+                  </span>
+                </div>
+              </div>
+              <div className="flex items-center gap-2 shrink-0">
+                <button onClick={() => handleEdit(member)} className="p-1.5 text-indigo-600 hover:text-indigo-900 hover:bg-indigo-50 rounded">
+                  <PencilSquareIcon className="h-5 w-5" />
+                </button>
+                {user?.id !== member.id && (
+                  <button onClick={() => handleDelete(member.id)} className="p-1.5 text-red-600 hover:text-red-900 hover:bg-red-50 rounded">
+                    <TrashIcon className="h-5 w-5" />
+                  </button>
+                )}
+              </div>
+            </li>
+          ))}
+          {staff.length === 0 && !isLoading && (
+            <li className="py-6 text-center text-gray-500 text-sm">No staff members found.</li>
+          )}
+        </ul>
+
+        {/* Desktop table */}
+        <div className="hidden md:block overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Name
-                </th>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Role
-                </th>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Email
-                </th>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Status
-                </th>
-                <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Actions
-                </th>
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Role</th>
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
@@ -291,19 +321,15 @@ export default function StaffPage() {
                         {member.first_name[0]}{member.last_name[0]}
                       </div>
                       <div className="ml-4">
-                        <div className="text-sm font-medium text-gray-900">
-                          {member.first_name} {member.last_name}
-                        </div>
-                        <div className="text-sm text-gray-500">
-                          {member.phone_number || '-'}
-                        </div>
+                        <div className="text-sm font-medium text-gray-900">{member.first_name} {member.last_name}</div>
+                        <div className="text-sm text-gray-500">{member.phone_number || '-'}</div>
                       </div>
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="text-sm text-gray-900 flex items-center">
-                        {member.role === 'venue_admin' && <ShieldCheckIcon className="w-4 h-4 mr-1 text-indigo-500"/>}
-                        <span className="capitalize">{member.role.replace('_', ' ')}</span>
+                      {member.role === 'venue_admin' && <ShieldCheckIcon className="w-4 h-4 mr-1 text-indigo-500" />}
+                      <span className="capitalize">{member.role.replace('_', ' ')}</span>
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
@@ -315,17 +341,11 @@ export default function StaffPage() {
                     </span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                    <button
-                      onClick={() => handleEdit(member)}
-                      className="text-indigo-600 hover:text-indigo-900 mr-4"
-                    >
+                    <button onClick={() => handleEdit(member)} className="text-indigo-600 hover:text-indigo-900 mr-4">
                       <PencilSquareIcon className="h-5 w-5" aria-hidden="true" />
                     </button>
                     {user?.id !== member.id && (
-                      <button
-                        onClick={() => handleDelete(member.id)}
-                        className="text-red-600 hover:text-red-900"
-                      >
+                      <button onClick={() => handleDelete(member.id)} className="text-red-600 hover:text-red-900">
                         <TrashIcon className="h-5 w-5" aria-hidden="true" />
                       </button>
                     )}
@@ -333,11 +353,9 @@ export default function StaffPage() {
                 </tr>
               ))}
               {staff.length === 0 && !isLoading && (
-                  <tr>
-                      <td colSpan={5} className="px-6 py-4 text-center text-gray-500">
-                          No staff members found.
-                      </td>
-                  </tr>
+                <tr>
+                  <td colSpan={5} className="px-6 py-4 text-center text-gray-500">No staff members found.</td>
+                </tr>
               )}
             </tbody>
           </table>

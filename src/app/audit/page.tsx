@@ -147,44 +147,72 @@ export default function AuditPage() {
             )}
 
             {!isLoading && entries.length > 0 && (
-              <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-slate-200">
-                  <thead className="bg-slate-50">
-                    <tr>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase">Timestamp</th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase">Action</th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase">Entity</th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase">Actor</th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase">Details</th>
-                    </tr>
-                  </thead>
-                  <tbody className="bg-white divide-y divide-slate-200">
-                    {entries.map((entry) => (
-                      <tr key={entry.id} className="hover:bg-slate-50">
-                        <td className="px-4 py-3 text-sm text-slate-600 whitespace-nowrap">
-                          {new Date(entry.created_at).toLocaleString()}
-                        </td>
-                        <td className="px-4 py-3 whitespace-nowrap">
-                          <span className={`inline-flex px-2 py-0.5 text-xs font-semibold rounded ${ACTION_COLORS[entry.action] || 'bg-slate-100 text-slate-700'}`}>
-                            {entry.action}
-                          </span>
-                        </td>
-                        <td className="px-4 py-3 text-sm text-slate-700 whitespace-nowrap">
-                          <span className="font-medium capitalize">{entry.entity_type}</span>
-                          <span className="ml-1 text-slate-400 font-mono text-xs">{entry.entity_id.slice(0, 8)}...</span>
-                        </td>
-                        <td className="px-4 py-3 text-sm text-slate-600 whitespace-nowrap">
-                          <span className="font-mono text-xs">{entry.actor_id.slice(0, 8)}...</span>
-                          <span className="ml-1 text-slate-400 text-xs">({entry.actor_type})</span>
-                        </td>
-                        <td className="px-4 py-3 text-xs text-slate-500 max-w-xs truncate">
-                          {entry.changes ? JSON.stringify(entry.changes) : '-'}
-                        </td>
+              <>
+                {/* Mobile cards */}
+                <ul className="divide-y divide-slate-100 md:hidden">
+                  {entries.map((entry) => (
+                    <li key={entry.id} className="p-4 space-y-2">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className={`inline-flex px-2 py-0.5 text-xs font-semibold rounded ${ACTION_COLORS[entry.action] || 'bg-slate-100 text-slate-700'}`}>
+                          {entry.action}
+                        </span>
+                        <span className="text-xs text-slate-400">{new Date(entry.created_at).toLocaleString()}</span>
+                      </div>
+                      <div className="text-sm text-slate-700">
+                        <span className="font-medium capitalize">{entry.entity_type}</span>
+                        <span className="ml-1 text-slate-400 font-mono text-xs">{entry.entity_id.slice(0, 8)}…</span>
+                      </div>
+                      <div className="text-xs text-slate-500">
+                        Actor: <span className="font-mono">{entry.actor_id.slice(0, 8)}…</span>
+                        <span className="ml-1">({entry.actor_type})</span>
+                      </div>
+                      {entry.changes && (
+                        <div className="text-xs text-slate-400 truncate">{JSON.stringify(entry.changes)}</div>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+
+                {/* Desktop table */}
+                <div className="hidden md:block overflow-x-auto">
+                  <table className="min-w-full divide-y divide-slate-200">
+                    <thead className="bg-slate-50">
+                      <tr>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase">Timestamp</th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase">Action</th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase">Entity</th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase">Actor</th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase">Details</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-slate-200">
+                      {entries.map((entry) => (
+                        <tr key={entry.id} className="hover:bg-slate-50">
+                          <td className="px-4 py-3 text-sm text-slate-600 whitespace-nowrap">
+                            {new Date(entry.created_at).toLocaleString()}
+                          </td>
+                          <td className="px-4 py-3 whitespace-nowrap">
+                            <span className={`inline-flex px-2 py-0.5 text-xs font-semibold rounded ${ACTION_COLORS[entry.action] || 'bg-slate-100 text-slate-700'}`}>
+                              {entry.action}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3 text-sm text-slate-700 whitespace-nowrap">
+                            <span className="font-medium capitalize">{entry.entity_type}</span>
+                            <span className="ml-1 text-slate-400 font-mono text-xs">{entry.entity_id.slice(0, 8)}…</span>
+                          </td>
+                          <td className="px-4 py-3 text-sm text-slate-600 whitespace-nowrap">
+                            <span className="font-mono text-xs">{entry.actor_id.slice(0, 8)}…</span>
+                            <span className="ml-1 text-slate-400 text-xs">({entry.actor_type})</span>
+                          </td>
+                          <td className="px-4 py-3 text-xs text-slate-500 max-w-xs truncate">
+                            {entry.changes ? JSON.stringify(entry.changes) : '-'}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </>
             )}
           </div>
         </div>

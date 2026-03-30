@@ -289,10 +289,10 @@ export default function ClaimsPage() {
                 return (
                   <div
                     key={claim.id}
-                    className="flex items-center gap-5 p-4 rounded-xl border border-gray-200 bg-white hover:shadow-md hover:border-gray-300 transition-all duration-200"
+                    className="flex items-center gap-3 sm:gap-5 p-3 sm:p-4 rounded-xl border border-gray-200 bg-white hover:shadow-md hover:border-gray-300 transition-all duration-200"
                   >
                     {/* Thumbnail */}
-                    <div className="relative w-24 h-24 rounded-xl overflow-hidden bg-gray-100 shrink-0">
+                    <div className="relative w-14 h-14 sm:w-24 sm:h-24 rounded-xl overflow-hidden bg-gray-100 shrink-0">
                       {firstImage ? (
                         <Image
                           src={firstImage}
@@ -308,28 +308,26 @@ export default function ClaimsPage() {
                     </div>
 
                     {/* Info */}
-                    <div className="flex-1 min-w-0 space-y-2">
-                      <p className="text-base font-semibold text-gray-900 truncate">
+                    <div className="flex-1 min-w-0 space-y-1 sm:space-y-2">
+                      <p className="text-sm sm:text-base font-semibold text-gray-900 truncate">
                         {claim.item?.title || 'Unknown Item'}
                       </p>
                       <div className="flex items-center gap-2">
-                        <span className="text-sm text-gray-500">Status</span>
-                        <span className={`inline-flex px-2.5 py-0.5 text-xs font-semibold rounded-full capitalize ${getStatusColor(claim.status)}`}>
+                        <span className={`inline-flex px-2 py-0.5 text-xs font-semibold rounded-full capitalize ${getStatusColor(claim.status)}`}>
                           {claim.status}
                         </span>
                       </div>
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm text-gray-500">Submitted at</span>
-                        <span className="text-sm font-medium text-gray-800">{formatDate(claim.created_at)}</span>
+                      <div className="text-xs sm:text-sm text-gray-500">
+                        {formatDate(claim.created_at)}
                       </div>
                     </div>
 
                     {/* Action */}
                     <button
                       onClick={() => setSelectedClaim(claim)}
-                      className="shrink-0 inline-flex items-center px-4 py-2 text-sm font-medium rounded-lg text-white bg-primary-600 hover:bg-primary-700 transition-colors"
+                      className="shrink-0 inline-flex items-center px-3 sm:px-4 py-2 text-xs sm:text-sm font-medium rounded-lg text-white bg-slate-900 hover:bg-slate-800 transition-colors"
                     >
-                      Take Action
+                      Review
                     </button>
                   </div>
                 );
@@ -349,7 +347,7 @@ export default function ClaimsPage() {
               role="dialog"
               aria-modal="true"
               aria-labelledby="claim-modal-title"
-              className="relative mx-auto p-5 border w-96 shadow-lg rounded-md bg-white max-h-[90vh] overflow-y-auto"
+              className="relative mx-auto p-5 border w-full max-w-md shadow-lg rounded-md bg-white max-h-[90vh] overflow-y-auto"
               onClick={(e) => e.stopPropagation()}
             >
               <div className="mt-3">
