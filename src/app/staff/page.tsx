@@ -8,8 +8,19 @@ import { useAuthStore } from '@/store/auth';
 import { User } from '@/types';
 import { api } from '@/services/api';
 import Link from 'next/link';
-import { PlusIcon, ShieldCheckIcon, UserGroupIcon, PencilSquareIcon, TrashIcon } from '@heroicons/react/24/outline';
+import { Dialog, DialogBackdrop, DialogPanel, DialogTitle } from '@headlessui/react';
+import {
+  PlusIcon,
+  ShieldCheckIcon,
+  UserGroupIcon,
+  PencilSquareIcon,
+  TrashIcon,
+  ExclamationTriangleIcon,
+  UserIcon,
+} from '@heroicons/react/24/outline';
+import { inputStyles } from '@/utils/styles';
 
+// ── Edit Modal ──────────────────────────────────────────────────────
 interface EditStaffModalProps {
   member: User | null;
   isOpen: boolean;
@@ -24,7 +35,7 @@ const EditStaffModal = ({ member, isOpen, onClose, onSave, isLoading }: EditStaf
     lastName: '',
     role: 'venue_staff',
     phoneNumber: '',
-    isActive: true, // Default to true or active
+    isActive: true,
   });
 
   useEffect(() => {
@@ -34,7 +45,7 @@ const EditStaffModal = ({ member, isOpen, onClose, onSave, isLoading }: EditStaf
         lastName: member.last_name,
         role: member.role || 'venue_staff',
         phoneNumber: member.phone_number || '',
-        isActive: member.is_active !== false, 
+        isActive: member.is_active !== false,
       });
     }
   }, [member]);
@@ -54,97 +65,104 @@ const EditStaffModal = ({ member, isOpen, onClose, onSave, isLoading }: EditStaf
   };
 
   return (
-    <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full flex items-center justify-center z-50">
-      <div className="relative bg-white rounded-lg shadow-xl max-w-md w-full mx-4 p-6">
-        <h3 className="text-lg font-medium leading-6 text-gray-900 mb-4">Edit Staff Member</h3>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
+    <Dialog open={isOpen} onClose={onClose} className="relative z-50">
+      <DialogBackdrop className="fixed inset-0 bg-black/30" />
+      <div className="fixed inset-0 flex items-center justify-center p-4">
+        <DialogPanel className="mx-auto max-w-md w-full rounded-xl bg-white p-6 shadow-xl">
+          <DialogTitle className="text-lg font-semibold text-slate-900 mb-4">Edit Staff Member</DialogTitle>
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">First Name</label>
+                <input
+                  type="text"
+                  required
+                  className={inputStyles}
+                  value={formData.firstName}
+                  onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Last Name</label>
+                <input
+                  type="text"
+                  required
+                  className={inputStyles}
+                  value={formData.lastName}
+                  onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
+                />
+              </div>
+            </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700">First Name</label>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Phone Number</label>
               <input
-                type="text"
-                required
-                className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                value={formData.firstName}
-                onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
+                type="tel"
+                className={inputStyles}
+                value={formData.phoneNumber}
+                onChange={(e) => setFormData({ ...formData, phoneNumber: e.target.value })}
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700">Last Name</label>
-              <input
-                type="text"
-                required
-                className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                value={formData.lastName}
-                onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
-              />
+              <label className="block text-sm font-medium text-slate-700 mb-1">Role</label>
+              <select
+                className={inputStyles}
+                value={formData.role}
+                onChange={(e) => setFormData({ ...formData, role: e.target.value })}
+              >
+                <option value="venue_staff">Staff</option>
+                <option value="venue_admin">Admin</option>
+              </select>
             </div>
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700">Phone Number</label>
-            <input
-              type="tel"
-              className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-              value={formData.phoneNumber}
-              onChange={(e) => setFormData({ ...formData, phoneNumber: e.target.value })}
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700">Role</label>
-            <select
-              className="mt-1 block w-full pl-3 pr-10 py-2 text-base border border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md"
-              value={formData.role}
-              onChange={(e) => setFormData({ ...formData, role: e.target.value })}
-            >
-              <option value="venue_staff">Staff</option>
-              <option value="venue_admin">Admin</option>
-            </select>
-          </div>
-          <div className="flex items-center">
-            <input
-              type="checkbox"
-              id="isActive"
-              className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
-              checked={formData.isActive}
-              onChange={(e) => setFormData({ ...formData, isActive: e.target.checked })}
-            />
-            <label htmlFor="isActive" className="ml-2 block text-sm text-gray-900">
-              Active Account
-            </label>
-          </div>
-          <div className="flex justify-end space-x-3 mt-6">
-            <button
-              type="button"
-              onClick={onClose}
-              className="bg-white py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-              disabled={isLoading}
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              className="inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50"
-              disabled={isLoading}
-            >
-              {isLoading ? 'Saving...' : 'Save Changes'}
-            </button>
-          </div>
-        </form>
+            <div className="flex items-center">
+              <input
+                type="checkbox"
+                id="isActive"
+                className="h-4 w-4 text-slate-900 focus:ring-slate-500 border-slate-300 rounded"
+                checked={formData.isActive}
+                onChange={(e) => setFormData({ ...formData, isActive: e.target.checked })}
+              />
+              <label htmlFor="isActive" className="ml-2 block text-sm text-slate-700">
+                Active Account
+              </label>
+            </div>
+            <div className="flex justify-end gap-3 mt-6 pt-4 border-t border-slate-100">
+              <button
+                type="button"
+                onClick={onClose}
+                disabled={isLoading}
+                className="px-4 py-2 text-sm font-medium text-slate-700 bg-slate-100 rounded-lg hover:bg-slate-200 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={isLoading}
+                className="px-4 py-2 text-sm font-medium text-white bg-slate-900 rounded-lg hover:bg-slate-800 disabled:opacity-50 transition-colors"
+              >
+                {isLoading ? 'Saving...' : 'Save Changes'}
+              </button>
+            </div>
+          </form>
+        </DialogPanel>
       </div>
-    </div>
+    </Dialog>
   );
 };
 
+// ── Page ─────────────────────────────────────────────────────────────
 export default function StaffPage() {
   const router = useRouter();
   const { user, venue, isInitialized, isAuthenticated } = useAuthStore();
   const [staff, setStaff] = useState<User[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  
+
   const [editingMember, setEditingMember] = useState<User | null>(null);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
+
+  // Delete modal state (replaces window.confirm)
+  const [deleteTarget, setDeleteTarget] = useState<User | null>(null);
 
   useEffect(() => {
     if (isInitialized && isAuthenticated && user?.role !== 'venue_admin') {
@@ -161,15 +179,14 @@ export default function StaffPage() {
       try {
         const venueId = venue?.id || user?.venue_id;
         if (!venueId) {
-            setError('No venue associated with this account');
-            return;
+          setError('No venue associated with this account');
+          return;
         }
-        
         const response = await api.venues.getStaff(venueId);
         if (response.success && response.data) {
           setStaff(response.data);
         } else {
-             setError('Failed to load staff');
+          setError('Failed to load staff');
         }
       } catch (err) {
         setError((err as { message?: string }).message || 'An error occurred fetching staff');
@@ -212,165 +229,221 @@ export default function StaffPage() {
     }
   };
 
-  const handleDelete = async (userId: string) => {
-    if (!window.confirm('Are you sure you want to remove this staff member? This action cannot be undone.')) {
-      return;
-    }
-
+  const confirmDelete = async () => {
+    if (!deleteTarget) return;
     try {
       const venueId = venue?.id || user?.venue_id;
       if (!venueId) return;
-
-      await api.venues.deleteStaff(venueId, userId);
-      setStaff(staff.filter((s) => s.id !== userId));
+      await api.venues.deleteStaff(venueId, deleteTarget.id);
+      setStaff(staff.filter((s) => s.id !== deleteTarget.id));
+      setDeleteTarget(null);
     } catch (err) {
       setError((err as { message?: string }).message || 'Failed to delete user');
+      setDeleteTarget(null);
     }
   };
 
-  if (!isInitialized || isLoading) {
+  const getInitials = (member: User) => {
+    return `${member.first_name?.[0] || ''}${member.last_name?.[0] || ''}`.toUpperCase() || '?';
+  };
+
+  const getRoleBadge = (role: string) => {
+    if (role === 'venue_admin') {
       return (
-          <Layout>
-              <div className="flex items-center justify-center p-12">
-                  <div className="text-gray-500">Loading staff...</div>
-              </div>
-          </Layout>
+        <span className="inline-flex items-center gap-1 px-2 py-0.5 text-xs font-semibold rounded-full bg-slate-100 text-slate-700">
+          <ShieldCheckIcon className="w-3 h-3" />
+          Admin
+        </span>
       );
+    }
+    return (
+      <span className="inline-flex items-center gap-1 px-2 py-0.5 text-xs font-semibold rounded-full bg-slate-50 text-slate-600">
+        <UserIcon className="w-3 h-3" />
+        Staff
+      </span>
+    );
+  };
+
+  if (!isInitialized || isLoading) {
+    return (
+      <Layout>
+        <div className="flex items-center justify-center p-12">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-slate-900 mx-auto"></div>
+          <span className="ml-3 text-slate-500">Loading staff...</span>
+        </div>
+      </Layout>
+    );
   }
 
   return (
     <Layout>
-      <div className="bg-white shadow rounded-lg p-4 sm:p-6">
-        <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
-          <h1 className="text-xl sm:text-2xl font-bold text-gray-900 flex items-center">
-            <UserGroupIcon className="h-6 w-6 sm:h-8 sm:w-8 mr-2 sm:mr-3 text-gray-500 shrink-0" />
-            Staff Management
-          </h1>
+      <div className="space-y-6">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h1 className="text-xl sm:text-2xl font-bold text-slate-900 flex items-center">
+              <UserGroupIcon className="h-6 w-6 sm:h-7 sm:w-7 mr-2 text-slate-500 shrink-0" />
+              Staff Management
+            </h1>
+            <p className="text-slate-500 mt-1 text-sm">{staff.length} member{staff.length !== 1 ? 's' : ''}</p>
+          </div>
           <Link
             href="/staff/add"
-            className="inline-flex items-center px-3 sm:px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-slate-900 hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-slate-500"
+            className="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-slate-900 rounded-lg hover:bg-slate-800 transition-colors"
           >
-            <PlusIcon className="-ml-1 mr-2 h-4 w-4 sm:h-5 sm:w-5" aria-hidden="true" />
+            <PlusIcon className="-ml-1 mr-2 h-4 w-4" />
             Add Staff
           </Link>
         </div>
 
         {error && (
-          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded mb-6 text-sm">
+          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">
             {error}
           </div>
         )}
 
-        {/* Mobile cards */}
-        <ul className="divide-y divide-gray-200 md:hidden">
-          {staff.map((member) => (
-            <li key={member.id} className="py-4 flex items-center gap-3">
-              <div className="flex-shrink-0 h-10 w-10 bg-gray-100 rounded-full flex items-center justify-center text-gray-500 font-bold text-sm">
-                {member.first_name[0]}{member.last_name[0]}
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="text-sm font-medium text-gray-900 truncate">
-                  {member.first_name} {member.last_name}
+        <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+          {/* Mobile cards */}
+          <ul className="divide-y divide-slate-100 md:hidden">
+            {staff.map((member) => (
+              <li key={member.id} className="p-4 flex items-center gap-3">
+                <div className="flex-shrink-0 h-10 w-10 bg-slate-100 rounded-full flex items-center justify-center text-slate-600 font-bold text-sm">
+                  {getInitials(member)}
                 </div>
-                <div className="text-xs text-gray-500 truncate">{member.email}</div>
-                <div className="flex items-center gap-2 mt-1">
-                  <span className={`px-2 text-xs leading-5 font-semibold rounded-full ${member.is_active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
-                    {member.is_active ? 'Active' : 'Inactive'}
-                  </span>
-                  <span className="text-xs text-gray-500 capitalize flex items-center">
-                    {member.role === 'venue_admin' && <ShieldCheckIcon className="w-3 h-3 mr-0.5 text-indigo-500" />}
-                    {member.role.replace('_', ' ')}
-                  </span>
-                </div>
-              </div>
-              <div className="flex items-center gap-2 shrink-0">
-                <button onClick={() => handleEdit(member)} className="p-1.5 text-indigo-600 hover:text-indigo-900 hover:bg-indigo-50 rounded">
-                  <PencilSquareIcon className="h-5 w-5" />
-                </button>
-                {user?.id !== member.id && (
-                  <button onClick={() => handleDelete(member.id)} className="p-1.5 text-red-600 hover:text-red-900 hover:bg-red-50 rounded">
-                    <TrashIcon className="h-5 w-5" />
-                  </button>
-                )}
-              </div>
-            </li>
-          ))}
-          {staff.length === 0 && !isLoading && (
-            <li className="py-6 text-center text-gray-500 text-sm">No staff members found.</li>
-          )}
-        </ul>
-
-        {/* Desktop table */}
-        <div className="hidden md:block overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
-              <tr>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Role</th>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {staff.map((member) => (
-                <tr key={member.id}>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="flex items-center">
-                      <div className="flex-shrink-0 h-10 w-10 bg-gray-100 rounded-full flex items-center justify-center text-gray-500 font-bold">
-                        {member.first_name[0]}{member.last_name[0]}
-                      </div>
-                      <div className="ml-4">
-                        <div className="text-sm font-medium text-gray-900">{member.first_name} {member.last_name}</div>
-                        <div className="text-sm text-gray-500">{member.phone_number || '-'}</div>
-                      </div>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm text-gray-900 flex items-center">
-                      {member.role === 'venue_admin' && <ShieldCheckIcon className="w-4 h-4 mr-1 text-indigo-500" />}
-                      <span className="capitalize">{member.role.replace('_', ' ')}</span>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm text-gray-900">{member.email}</div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${member.is_active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
-                      {member.is_active ? 'Active' : 'Inactive'}
+                <div className="flex-1 min-w-0">
+                  <div className="text-sm font-medium text-slate-900 truncate">
+                    {member.first_name} {member.last_name}
+                  </div>
+                  <div className="text-xs text-slate-500 truncate">{member.email}</div>
+                  <div className="flex items-center gap-2 mt-1">
+                    <span className={`px-2 text-xs leading-5 font-semibold rounded-full ${member.is_active !== false ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                      {member.is_active !== false ? 'Active' : 'Inactive'}
                     </span>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                    <button onClick={() => handleEdit(member)} className="text-indigo-600 hover:text-indigo-900 mr-4">
-                      <PencilSquareIcon className="h-5 w-5" aria-hidden="true" />
+                    {getRoleBadge(member.role)}
+                  </div>
+                </div>
+                <div className="flex items-center gap-1 shrink-0">
+                  <button onClick={() => handleEdit(member)} className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded transition-colors" title="Edit">
+                    <PencilSquareIcon className="h-5 w-5" />
+                  </button>
+                  {user?.id !== member.id && (
+                    <button onClick={() => setDeleteTarget(member)} className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors" title="Remove">
+                      <TrashIcon className="h-5 w-5" />
                     </button>
-                    {user?.id !== member.id && (
-                      <button onClick={() => handleDelete(member.id)} className="text-red-600 hover:text-red-900">
-                        <TrashIcon className="h-5 w-5" aria-hidden="true" />
-                      </button>
-                    )}
-                  </td>
-                </tr>
-              ))}
-              {staff.length === 0 && !isLoading && (
+                  )}
+                </div>
+              </li>
+            ))}
+            {staff.length === 0 && (
+              <li className="py-6 text-center text-slate-500 text-sm">No staff members found.</li>
+            )}
+          </ul>
+
+          {/* Desktop table */}
+          <div className="hidden md:block overflow-x-auto">
+            <table className="min-w-full divide-y divide-slate-200">
+              <thead className="bg-slate-50">
                 <tr>
-                  <td colSpan={5} className="px-6 py-4 text-center text-gray-500">No staff members found.</td>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Name</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Role</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Email</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Status</th>
+                  <th className="px-6 py-3 text-right text-xs font-medium text-slate-500 uppercase tracking-wider">Actions</th>
                 </tr>
-              )}
-            </tbody>
-          </table>
+              </thead>
+              <tbody className="bg-white divide-y divide-slate-100">
+                {staff.map((member) => (
+                  <tr key={member.id} className="hover:bg-slate-50 transition-colors">
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="flex items-center">
+                        <div className="flex-shrink-0 h-10 w-10 bg-slate-100 rounded-full flex items-center justify-center text-slate-600 font-bold">
+                          {getInitials(member)}
+                        </div>
+                        <div className="ml-4">
+                          <div className="text-sm font-medium text-slate-900">{member.first_name} {member.last_name}</div>
+                          <div className="text-sm text-slate-500">{member.phone_number || '—'}</div>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      {getRoleBadge(member.role)}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="text-sm text-slate-700">{member.email}</div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${member.is_active !== false ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                        {member.is_active !== false ? 'Active' : 'Inactive'}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-right">
+                      <div className="flex items-center justify-end gap-1">
+                        <button onClick={() => handleEdit(member)} className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded transition-colors" title="Edit">
+                          <PencilSquareIcon className="h-5 w-5" />
+                        </button>
+                        {user?.id !== member.id && (
+                          <button onClick={() => setDeleteTarget(member)} className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors" title="Remove">
+                            <TrashIcon className="h-5 w-5" />
+                          </button>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+                {staff.length === 0 && (
+                  <tr>
+                    <td colSpan={5} className="px-6 py-8 text-center text-slate-500 text-sm">No staff members found.</td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
-      
-      {isEditModalOpen && (
-        <EditStaffModal
-          isOpen={isEditModalOpen}
-          member={editingMember}
-          onClose={() => setIsEditModalOpen(false)}
-          onSave={handleUpdate}
-          isLoading={isUpdating}
-        />
-      )}
+
+      {/* Edit Modal */}
+      <EditStaffModal
+        isOpen={isEditModalOpen}
+        member={editingMember}
+        onClose={() => { setIsEditModalOpen(false); setEditingMember(null); }}
+        onSave={handleUpdate}
+        isLoading={isUpdating}
+      />
+
+      {/* Delete Confirmation Modal */}
+      <Dialog open={!!deleteTarget} onClose={() => setDeleteTarget(null)} className="relative z-50">
+        <DialogBackdrop className="fixed inset-0 bg-black/30" />
+        <div className="fixed inset-0 flex items-center justify-center p-4">
+          <DialogPanel className="mx-auto max-w-sm w-full rounded-xl bg-white p-6 shadow-xl">
+            <div className="flex items-start gap-3 mb-4">
+              <div className="p-2 bg-red-100 rounded-full shrink-0">
+                <ExclamationTriangleIcon className="h-5 w-5 text-red-600" />
+              </div>
+              <div>
+                <DialogTitle className="text-base font-semibold text-slate-900">
+                  Remove Staff Member
+                </DialogTitle>
+                <p className="text-sm text-slate-500 mt-1">
+                  Are you sure you want to remove <strong>{deleteTarget?.first_name} {deleteTarget?.last_name}</strong>? This action cannot be undone.
+                </p>
+              </div>
+            </div>
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={() => setDeleteTarget(null)}
+                className="px-4 py-2 text-sm font-medium text-slate-700 bg-slate-100 rounded-lg hover:bg-slate-200 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmDelete}
+                className="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-700 transition-colors"
+              >
+                Remove
+              </button>
+            </div>
+          </DialogPanel>
+        </div>
+      </Dialog>
     </Layout>
   );
 }

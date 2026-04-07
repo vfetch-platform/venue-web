@@ -5,7 +5,6 @@ export const ROUTES = {
   ITEMS: '/items',
   ITEMS_ADD: '/items/add',
   CLAIMS: '/claims',
-  AUDIT: '/audit',
   PROFILE: '/profile',
   STAFF: '/staff',
   STAFF_ADD: '/staff/add',
@@ -14,4 +13,6 @@ export const ROUTES = {
   ADMIN_VENUES_NEW: '/admin/venues/new',
   RESET_PASSWORD: '/reset-password',
   SUPPORT: '/support',
+  PRIVACY_POLICY: '/privacy-policy',
+  TERMS_OF_SERVICE: '/terms-of-service',
 } as const;

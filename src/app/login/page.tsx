@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import Image from 'next/image';
 import { useAuthStore } from '@/store/auth';
 import { ROUTES } from '@/constants/routes';
@@ -21,7 +22,7 @@ export default function LoginPage() {
     e.preventDefault();
     try {
       await login(email, password);
-      router.push(ROUTES.ITEMS);
+      router.push(ROUTES.CLAIMS);
     } catch {
       // Error is handled in the store
     }
@@ -110,9 +111,9 @@ export default function LoginPage() {
                 <label htmlFor="password" className="block text-sm font-medium text-slate-700">
                   Password
                 </label>
-                <button type="button" className="text-sm font-medium text-slate-900 hover:text-slate-700 transition">
+                <Link href={ROUTES.RESET_PASSWORD} className="text-sm font-medium text-slate-900 hover:text-slate-700 transition">
                   Forgot password?
-                </button>
+                </Link>
               </div>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -193,11 +194,11 @@ export default function LoginPage() {
 
           {/* Footer links */}
           <div className="mt-8 flex items-center justify-center gap-4 text-xs text-slate-400">
-            <a href="#" className="hover:text-slate-600 transition">Privacy Policy</a>
+            <Link href={ROUTES.PRIVACY_POLICY} className="hover:text-slate-600 transition">Privacy Policy</Link>
             <span>·</span>
-            <a href="#" className="hover:text-slate-600 transition">Terms of Service</a>
+            <Link href={ROUTES.TERMS_OF_SERVICE} className="hover:text-slate-600 transition">Terms of Service</Link>
             <span>·</span>
-            <a href="#" className="hover:text-slate-600 transition">Support</a>
+            <a href="mailto:info@vfetch.co.uk" className="hover:text-slate-600 transition">Support</a>
           </div>
         </div>
       </div>

@@ -5,25 +5,31 @@ import { MONTH_NAMES, COLLECTED_STATUSES } from '@/constants/items';
 import { DASHBOARD_FETCH_LIMIT } from '@/constants/config';
 import { useAuthStore } from '@/store/auth';
 import {
-  ChartBarIcon,
+  ArchiveBoxIcon,
+  EyeIcon,
+  HandRaisedIcon,
+  CurrencyPoundIcon,
   ArrowTrendingUpIcon,
   ClockIcon,
-  UserGroupIcon,
-  EyeIcon,
-  CalendarIcon,
+  ArrowDownTrayIcon,
   ExclamationTriangleIcon,
 } from '@heroicons/react/24/outline';
 import { cardStyles } from '@/utils/styles';
 import { useEffect, useState, useMemo } from 'react';
 import { api } from '@/services/api';
-import { Item, Claim } from '@/types';
+import { Item, Claim, User } from '@/types';
 
 // ── Types ────────────────────────────────────────────────────────────
-interface MonthlyTrend {
-  month: string;
-  found: number;
-  claimed: number;
-  collected: number;
+interface AuditEntry {
+  id: string;
+  entity_type: string;
+  entity_id: string;
+  action: string;
+  actor_id: string;
+  actor_type: string;
+  changes?: Record<string, unknown>;
+  metadata?: Record<string, unknown>;
+  created_at: string;
 }
 
 interface CategoryBreakdown {
@@ -32,76 +38,27 @@ interface CategoryBreakdown {
   percentage: number;
 }
 
-interface RecentActivity {
-  action: string;
-  item: string;
-  time: string;
-}
-
 interface DashboardData {
   totalItems: number;
   availableItems: number;
   claimedItems: number;
+  paidItems: number;
   collectedItems: number;
   expiredItems: number;
-  monthlyTrends: MonthlyTrend[];
   categoryBreakdown: CategoryBreakdown[];
-  recentActivity: RecentActivity[];
   avgDaysToClaim: number;
 }
 
 // ── Helpers ──────────────────────────────────────────────────────────
-function timeAgo(iso: string): string {
-  const diff = Date.now() - new Date(iso).getTime();
-  const mins = Math.floor(diff / 60000);
-  if (mins < 1) return 'just now';
-  if (mins < 60) return `${mins} min${mins > 1 ? 's' : ''} ago`;
-  const hours = Math.floor(mins / 60);
-  if (hours < 24) return `${hours} hour${hours > 1 ? 's' : ''} ago`;
-  const days = Math.floor(hours / 24);
-  if (days < 30) return `${days} day${days > 1 ? 's' : ''} ago`;
-  const months = Math.floor(days / 30);
-  return `${months} month${months > 1 ? 's' : ''} ago`;
-}
-
-
 function buildDashboardData(items: Item[], claims: Claim[]): DashboardData {
-  // ── Stat counts (single pass) ────────────────────────────────────────
   const totalItems = items.length;
-  let availableItems = 0, claimedItems = 0, collectedItems = 0, expiredItems = 0;
+  let availableItems = 0, claimedItems = 0, paidItems = 0, collectedItems = 0, expiredItems = 0;
   for (const i of items) {
     if (i.status === 'available') availableItems++;
     else if (i.status === 'claimed') claimedItems++;
+    else if (i.status === 'paid') paidItems++;
     else if (COLLECTED_STATUSES.has(i.status)) collectedItems++;
     else if (i.status === 'expired') expiredItems++;
-  }
-
-  // ── Monthly trends (last 6 months) ─────────────────────────────────
-  const now = new Date();
-  const monthlyTrends: MonthlyTrend[] = [];
-  for (let i = 5; i >= 0; i--) {
-    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-    const year = d.getFullYear();
-    const month = d.getMonth();
-    const label = MONTH_NAMES[month];
-
-    const found = items.filter(it => {
-      const dt = new Date(it.created_at);
-      return dt.getFullYear() === year && dt.getMonth() === month;
-    }).length;
-
-    const claimed = claims.filter(cl => {
-      const dt = new Date(cl.created_at);
-      return dt.getFullYear() === year && dt.getMonth() === month;
-    }).length;
-
-    const collected = claims.filter(cl => {
-      if (cl.status !== 'collected' || !cl.collected_at) return false;
-      const dt = new Date(cl.collected_at);
-      return dt.getFullYear() === year && dt.getMonth() === month;
-    }).length;
-
-    monthlyTrends.push({ month: label, found, claimed, collected });
   }
 
   // ── Category breakdown ──────────────────────────────────────────────
@@ -117,46 +74,6 @@ function buildDashboardData(items: Item[], claims: Claim[]): DashboardData {
       count,
       percentage: totalItems > 0 ? Math.round((count / totalItems) * 100) : 0,
     }));
-
-  // ── Recent activity (last 10 events) ────────────────────────────────
-  type Activity = { action: string; item: string; time: string; sortDate: number };
-  const activities: Activity[] = [];
-
-  items.forEach(it => {
-    activities.push({
-      action: 'Item Added',
-      item: it.title,
-      time: it.created_at,
-      sortDate: new Date(it.created_at).getTime(),
-    });
-  });
-
-  claims.forEach(cl => {
-    const itemName = cl.item?.title || 'Unknown Item';
-    if (cl.status === 'collected' && cl.collected_at) {
-      activities.push({
-        action: 'Item Collected',
-        item: itemName,
-        time: cl.collected_at,
-        sortDate: new Date(cl.collected_at).getTime(),
-      });
-    }
-    activities.push({
-      action: cl.status === 'approved' ? 'Claim Approved'
-        : cl.status === 'rejected' ? 'Claim Rejected'
-        : 'Item Claimed',
-      item: itemName,
-      time: cl.updated_at || cl.created_at,
-      sortDate: new Date(cl.updated_at || cl.created_at).getTime(),
-    });
-  });
-
-  activities.sort((a, b) => b.sortDate - a.sortDate);
-  const recentActivity: RecentActivity[] = activities.slice(0, 10).map(a => ({
-    action: a.action,
-    item: a.item,
-    time: timeAgo(a.time),
-  }));
 
   // ── Avg days to claim ───────────────────────────────────────────────
   let avgDaysToClaim = 0;
@@ -174,37 +91,153 @@ function buildDashboardData(items: Item[], claims: Claim[]): DashboardData {
     totalItems,
     availableItems,
     claimedItems,
+    paidItems,
     collectedItems,
     expiredItems,
-    monthlyTrends,
     categoryBreakdown,
-    recentActivity,
     avgDaysToClaim,
   };
 }
 
-const StatCard = ({ title, value, icon: Icon, color = "blue" }: {
+// ── Activity helpers ────────────────────────────────────────────────
+
+// Only show venue-staff actions (not customer claim creations etc.)
+const VENUE_ACTIONS = new Set([
+  'create',   // item created by staff
+  'update',   // item/claim updated by staff
+  'approve',
+  'approved',
+  'reject',
+  'rejected',
+  'confirm_pickup',
+  'collected',
+  'delete',
+]);
+
+// actor_type values that represent venue staff
+const STAFF_ACTOR_TYPES = new Set(['venue_staff', 'venue_admin', 'admin', 'staff']);
+
+function isVenueAction(entry: AuditEntry): boolean {
+  // Must be a staff action
+  if (!STAFF_ACTOR_TYPES.has(entry.actor_type)) return false;
+  // Must be a relevant action
+  if (!VENUE_ACTIONS.has(entry.action)) return false;
+  return true;
+}
+
+function timeAgo(iso: string): string {
+  const diff = Date.now() - new Date(iso).getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1) return 'just now';
+  if (mins < 60) return `${mins}m ago`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.floor(hours / 24);
+  if (days < 30) return `${days}d ago`;
+  const months = Math.floor(days / 30);
+  return `${months}mo ago`;
+}
+
+interface ActivityRow {
+  id: string;
+  description: string;
+  staffName: string;
+  time: string;
+  timestamp: string; // ISO for CSV
+  action: string;
+  entityType: string;
+}
+
+function buildActivityRows(
+  entries: AuditEntry[],
+  itemMap: Map<string, string>,
+  staffMap: Map<string, string>,
+): ActivityRow[] {
+  return entries.filter(isVenueAction).map(entry => {
+    const staffName = staffMap.get(entry.actor_id) || 'Staff';
+    const entityName = itemMap.get(entry.entity_id) || entry.entity_type;
+    const entityLabel = entry.entity_type === 'item' ? 'item' : entry.entity_type;
+
+    let description: string;
+    switch (entry.action) {
+      case 'create':
+        description = `Added ${entityLabel} "${entityName}"`;
+        break;
+      case 'update':
+        description = `Updated ${entityLabel} "${entityName}"`;
+        break;
+      case 'approve':
+      case 'approved':
+        description = `Approved claim for "${entityName}"`;
+        break;
+      case 'reject':
+      case 'rejected':
+        description = `Rejected claim for "${entityName}"`;
+        break;
+      case 'confirm_pickup':
+      case 'collected':
+        description = `Marked "${entityName}" as collected`;
+        break;
+      case 'delete':
+        description = `Removed ${entityLabel} "${entityName}"`;
+        break;
+      default:
+        description = `${entry.action} ${entityLabel} "${entityName}"`;
+    }
+
+    return {
+      id: entry.id,
+      description,
+      staffName,
+      time: timeAgo(entry.created_at),
+      timestamp: entry.created_at,
+      action: entry.action,
+      entityType: entry.entity_type,
+    };
+  });
+}
+
+function downloadActivityCSV(rows: ActivityRow[]) {
+  const headers = ['Timestamp', 'Staff', 'Activity'];
+  const csvRows = rows.map(r => [
+    new Date(r.timestamp).toISOString(),
+    `"${r.staffName}"`,
+    `"${r.description.replace(/"/g, '""')}"`,
+  ]);
+  const csv = [headers.join(','), ...csvRows.map(r => r.join(','))].join('\n');
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = `activity-log-${new Date().toISOString().split('T')[0]}.csv`;
+  link.click();
+  URL.revokeObjectURL(url);
+}
+
+// ── Stat Card ────────────────────────────────────────────────────────
+const StatCard = ({ title, value, icon: Icon, color }: {
   title: string;
   value: number | string;
   icon: React.ComponentType<React.SVGProps<SVGSVGElement>>;
-  color?: string;
+  color: string;
 }) => {
-  const colorClasses = {
-    blue: 'text-blue-600 bg-blue-50',
+  const colorMap: Record<string, string> = {
     green: 'text-green-600 bg-green-50',
     yellow: 'text-yellow-600 bg-yellow-50',
+    purple: 'text-purple-600 bg-purple-50',
+    blue: 'text-blue-600 bg-blue-50',
     red: 'text-red-600 bg-red-50',
-    gray: 'text-slate-600 bg-slate-50',
+    slate: 'text-slate-600 bg-slate-100',
   };
 
   return (
-    <div className={`${cardStyles} p-4 sm:p-6`}>
+    <div className={`${cardStyles} p-4 sm:p-5`}>
       <div className="flex items-center">
-        <div className={`flex-shrink-0 p-2 sm:p-3 rounded-md ${colorClasses[color as keyof typeof colorClasses]}`}>
+        <div className={`flex-shrink-0 p-2.5 rounded-lg ${colorMap[color] || colorMap.slate}`}>
           <Icon className="h-5 w-5 sm:h-6 sm:w-6" />
         </div>
         <div className="ml-3 min-w-0">
-          <p className="text-xs sm:text-sm font-medium text-slate-600 truncate">{title}</p>
+          <p className="text-xs sm:text-sm font-medium text-slate-500 truncate">{title}</p>
           <p className="text-xl sm:text-2xl font-bold text-slate-900">{value}</p>
         </div>
       </div>
@@ -212,8 +245,148 @@ const StatCard = ({ title, value, icon: Icon, color = "blue" }: {
   );
 };
 
+// ── Status Pie Chart ─────────────────────────────────────────────────
+const STATUS_COLORS: Record<string, string> = {
+  Available: '#22c55e',
+  Claimed: '#eab308',
+  Paid: '#a855f7',
+  Collected: '#3b82f6',
+  Expired: '#ef4444',
+};
 
-const PieChart = ({ data }: { data: CategoryBreakdown[] }) => {
+const StatusPieChart = ({ items }: { items: Item[] }) => {
+  // Build month options from items (last 6 months + "All Time")
+  const now = new Date();
+  const monthOptions: { label: string; value: string }[] = [{ label: 'All Time', value: '' }];
+  for (let i = 0; i < 6; i++) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    const key = `${d.getFullYear()}-${d.getMonth()}`;
+    const label = `${MONTH_NAMES[d.getMonth()]} ${d.getFullYear()}`;
+    monthOptions.push({ label, value: key });
+  }
+
+  const [selectedMonth, setSelectedMonth] = useState('');
+
+  // Filter items by selected month
+  const filtered = selectedMonth
+    ? items.filter(item => {
+        const d = new Date(item.created_at);
+        return `${d.getFullYear()}-${d.getMonth()}` === selectedMonth;
+      })
+    : items;
+
+  // Count statuses
+  let available = 0, claimed = 0, paid = 0, collected = 0, expired = 0;
+  for (const i of filtered) {
+    if (i.status === 'available') available++;
+    else if (i.status === 'claimed') claimed++;
+    else if (i.status === 'paid') paid++;
+    else if (COLLECTED_STATUSES.has(i.status)) collected++;
+    else if (i.status === 'expired') expired++;
+  }
+
+  const segments = [
+    { label: 'Available', value: available },
+    { label: 'Claimed', value: claimed },
+    { label: 'Paid', value: paid },
+    { label: 'Collected', value: collected },
+    { label: 'Expired', value: expired },
+  ].filter(s => s.value > 0);
+
+  const total = segments.reduce((s, seg) => s + seg.value, 0) || 1;
+
+  // Build conic gradient
+  let cumulative = 0;
+  const gradientStops = segments.map(s => {
+    const start = cumulative;
+    const pct = (s.value / total) * 100;
+    cumulative += pct;
+    const color = STATUS_COLORS[s.label] || '#94a3b8';
+    return `${color} ${start}% ${cumulative}%`;
+  }).join(', ');
+
+  // Compute label positions
+  cumulative = 0;
+  const labels = segments.map(s => {
+    const pct = (s.value / total) * 100;
+    const start = cumulative;
+    cumulative += pct;
+    const mid = start + pct / 2;
+    const angleDeg = (mid / 100) * 360;
+    const angleRad = (angleDeg - 90) * (Math.PI / 180);
+    const r = 0.36;
+    const x = 50 + r * 50 * Math.cos(angleRad);
+    const y = 50 + r * 50 * Math.sin(angleRad);
+    return { ...s, x, y, pct };
+  });
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <h3 className="text-lg font-medium text-slate-900">Items by Status</h3>
+        <select
+          value={selectedMonth}
+          onChange={(e) => setSelectedMonth(e.target.value)}
+          className="text-sm border border-slate-200 rounded-lg px-3 py-1.5 text-slate-700 focus:ring-slate-500 focus:border-slate-500"
+        >
+          {monthOptions.map(o => (
+            <option key={o.value} value={o.value}>{o.label}</option>
+          ))}
+        </select>
+      </div>
+
+      {segments.length === 0 ? (
+        <p className="text-sm text-slate-500 text-center py-8">No items {selectedMonth ? 'for this month' : 'yet'}</p>
+      ) : (
+        <div className="flex flex-col items-center space-y-5">
+          {/* Pie */}
+          <div className="relative w-full max-w-[16rem] aspect-square mx-auto" aria-label="Status distribution pie chart">
+            <div className="w-full h-full rounded-full shadow-inner" style={{ background: `conic-gradient(${gradientStops})` }} />
+            {/* Center hole for donut effect */}
+            <div className="absolute inset-0 flex items-center justify-center">
+              <div className="w-[45%] h-[45%] rounded-full bg-white shadow-sm flex items-center justify-center">
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-slate-900">{total}</div>
+                  <div className="text-[10px] text-slate-500 uppercase tracking-wider font-medium">Total</div>
+                </div>
+              </div>
+            </div>
+            {/* Segment labels (only for segments > 8%) */}
+            {labels.filter(l => l.pct > 8).map((l, i) => (
+              <div
+                key={i}
+                className="absolute text-xs font-semibold text-white drop-shadow pointer-events-none"
+                style={{ left: `${l.x}%`, top: `${l.y}%`, transform: 'translate(-50%, -50%)' }}
+              >
+                <div className="leading-tight text-center">
+                  <div>{l.value}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+          {/* Legend */}
+          <div className="flex flex-wrap justify-center gap-x-5 gap-y-2 text-sm">
+            {segments.map(s => (
+              <div key={s.label} className="flex items-center gap-2">
+                <span className="w-3 h-3 rounded-full" style={{ backgroundColor: STATUS_COLORS[s.label] }} />
+                <span className="text-slate-600">{s.label}</span>
+                <span className="text-slate-400 text-xs">({s.value})</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+// ── Category Breakdown ───────────────────────────────────────────────
+const CATEGORY_COLORS = [
+  '#334155', '#475569', '#64748b', '#94a3b8', '#cbd5e1',
+  '#6366f1', '#8b5cf6', '#a78bfa', '#c4b5fd', '#e0e7ff',
+];
+
+const CategoryBreakdownChart = ({ data }: { data: CategoryBreakdown[] }) => {
   if (data.length === 0) {
     return <p className="text-sm text-slate-500 text-center py-8">No items yet</p>;
   }
@@ -221,17 +394,16 @@ const PieChart = ({ data }: { data: CategoryBreakdown[] }) => {
   return (
     <div className="space-y-3">
       {data.map((item, index) => (
-        <div key={index} className="flex items-center justify-between">
-          <div className="flex items-center">
-            <div 
-              className={`w-4 h-4 rounded-full mr-3`}
-              style={{ backgroundColor: `hsl(${index * 72}, 70%, 50%)` }}
-            ></div>
+        <div key={index}>
+          <div className="flex items-center justify-between mb-1">
             <span className="text-sm text-slate-700">{item.category}</span>
+            <span className="text-sm font-medium text-slate-900">{item.count} <span className="text-slate-400 text-xs">({item.percentage}%)</span></span>
           </div>
-          <div className="text-right">
-            <div className="text-sm font-medium text-slate-900">{item.count}</div>
-            <div className="text-xs text-slate-500">{item.percentage}%</div>
+          <div className="w-full bg-slate-100 rounded-full h-2">
+            <div
+              className="h-2 rounded-full transition-all duration-500"
+              style={{ width: `${item.percentage}%`, backgroundColor: CATEGORY_COLORS[index % CATEGORY_COLORS.length] }}
+            />
           </div>
         </div>
       ))}
@@ -239,93 +411,121 @@ const PieChart = ({ data }: { data: CategoryBreakdown[] }) => {
   );
 };
 
-const MonthlyPieChart = ({ data }: { data: MonthlyTrend[] }) => {
-  const [selectedMonth, setSelectedMonth] = useState(data[data.length - 1]?.month ?? '');
-  const current = data.find(d => d.month === selectedMonth) || data[0];
+// ── Recent Activity Section ─────────────────────────────────────────
+const DATE_FILTER_OPTIONS = [
+  { label: 'Last 7 days', value: '7' },
+  { label: 'Last 30 days', value: '30' },
+  { label: 'Last 90 days', value: '90' },
+  { label: 'All time', value: '' },
+];
 
-  if (!current) {
-    return <p className="text-sm text-slate-500 text-center py-8">No data available</p>;
-  }
+const RecentActivitySection = ({
+  entries,
+  items,
+  claims,
+  staffMap,
+  isLoading,
+}: {
+  entries: AuditEntry[];
+  items: Item[];
+  claims: Claim[];
+  staffMap: Map<string, string>;
+  isLoading: boolean;
+}) => {
+  const [dateFilter, setDateFilter] = useState('7');
 
-  const total = current.found + current.claimed + current.collected || 1;
-  const segments = [
-    { label: 'Found', value: current.found, color: '#3B82F6' },
-    { label: 'Claimed', value: current.claimed, color: '#F59E0B' },
-    { label: 'Collected', value: current.collected, color: '#10B981' },
-  ];
-  // Build gradient stops
-  let cumulative = 0;
-  const gradientStops = segments.map(s => {
-    const start = cumulative;
-    const pct = (s.value / total) * 100;
-    cumulative += pct;
-    return `${s.color} ${start}% ${cumulative}%`;
-  }).join(', ');
-  // Compute label positions
-  cumulative = 0;
-  const labels = segments.map(s => {
-    const pct = (s.value / total) * 100;
-    const start = cumulative;
-    cumulative += pct;
-    const mid = start + pct / 2; // degrees in 0-100 scale mapped to 360deg
-    const angleDeg = (mid / 100) * 360; // CSS 0deg at top
-    const angleRad = (angleDeg - 90) * (Math.PI / 180); // convert to standard
-    const r = 0.38; // radial factor
-    const x = 50 + r * 50 * Math.cos(angleRad);
-    const y = 50 + r * 50 * Math.sin(angleRad);
-    return { ...s, x, y };
-  });
-  const gradient = `conic-gradient(${gradientStops})`;
+  // Build entity_id → human name lookup from items + claims
+  const itemMap = useMemo(() => {
+    const map = new Map<string, string>();
+    items.forEach(i => map.set(i.id, i.title));
+    claims.forEach(cl => {
+      if (cl.item?.title) {
+        map.set(cl.id, cl.item.title);       // claim id → item title
+        map.set(cl.item_id, cl.item.title);   // item id → item title
+      }
+    });
+    return map;
+  }, [items, claims]);
+
+  const rows = useMemo(() => {
+    let list = buildActivityRows(entries, itemMap, staffMap);
+    if (dateFilter) {
+      const days = parseInt(dateFilter, 10);
+      const cutoff = new Date();
+      cutoff.setDate(cutoff.getDate() - days);
+      list = list.filter(r => new Date(r.timestamp) >= cutoff);
+    }
+    return list;
+  }, [entries, itemMap, staffMap, dateFilter]);
+
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h3 className="text-lg font-medium text-slate-900">Monthly Breakdown</h3>
-        <select
-          className="text-sm md:text-base border-slate-300 rounded-md px-3 py-1.5 focus:ring-blue-500 focus:border-blue-500"
-          value={selectedMonth}
-          onChange={(e) => setSelectedMonth(e.target.value)}
-        >
-          {data.map(d => <option key={d.month} value={d.month}>{d.month}</option>)}
-        </select>
+    <div className={`${cardStyles} p-6`}>
+      <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+        <h3 className="text-lg font-medium text-slate-900">Recent Activity</h3>
+        <div className="flex items-center gap-2">
+          <select
+            value={dateFilter}
+            onChange={(e) => setDateFilter(e.target.value)}
+            className="text-sm border border-slate-200 rounded-lg px-3 py-1.5 text-slate-700 focus:ring-slate-500 focus:border-slate-500"
+          >
+            {DATE_FILTER_OPTIONS.map(o => (
+              <option key={o.value} value={o.value}>{o.label}</option>
+            ))}
+          </select>
+          <button
+            onClick={() => downloadActivityCSV(rows)}
+            disabled={rows.length === 0}
+            className="inline-flex items-center px-3 py-1.5 text-sm font-medium text-slate-700 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          >
+            <ArrowDownTrayIcon className="h-4 w-4 mr-1.5" />
+            Export CSV
+          </button>
+        </div>
       </div>
-      <div className="flex flex-col items-center space-y-6">
-        <div className="relative w-full max-w-[18rem] aspect-square mx-auto" aria-label="Monthly distribution pie chart">
-          <div className="w-full h-full rounded-full shadow-inner" style={{ background: gradient }}></div>
-          {/* Numeric segment labels */}
-          {labels.map((l, i) => (
-            <div
-              key={i}
-              className="absolute text-xs font-semibold text-white drop-shadow pointer-events-none"
-              style={{ left: `${l.x}%`, top: `${l.y}%`, transform: 'translate(-50%, -50%)' }}
-            >
-              <div className="leading-tight text-center">
-                <div>{l.value}</div>
-                <div className="opacity-80">{Math.round((l.value / total) * 100)}%</div>
+
+      {isLoading ? (
+        <div className="flex items-center justify-center py-8">
+          <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-slate-900"></div>
+          <span className="ml-2 text-sm text-slate-500">Loading activity...</span>
+        </div>
+      ) : rows.length === 0 ? (
+        <p className="text-sm text-slate-500 text-center py-8">No activity {dateFilter ? 'in this period' : 'yet'}</p>
+      ) : (
+        <div className="space-y-0">
+          {rows.slice(0, 20).map((row) => (
+            <div key={row.id} className="flex items-start justify-between gap-3 py-3 border-b border-slate-100 last:border-b-0">
+              <div className="min-w-0">
+                <p className="text-sm text-slate-900">
+                  <span className="font-medium">{row.staffName}</span>
+                  <span className="text-slate-500 ml-1">{row.description.charAt(0).toLowerCase() + row.description.slice(1)}</span>
+                </p>
               </div>
+              <span className="text-xs text-slate-400 shrink-0 pt-0.5">{row.time}</span>
             </div>
           ))}
+          {rows.length > 20 && (
+            <p className="text-xs text-slate-400 text-center pt-3">
+              Showing 20 of {rows.length} entries. Export CSV for the full list.
+            </p>
+          )}
         </div>
-        {/* Legend */}
-        <div className="flex flex-wrap justify-center gap-6 text-sm">
-          {segments.map(s => (
-            <div key={s.label} className="flex items-center gap-2">
-              <span className="w-4 h-4 rounded-full" style={{ backgroundColor: s.color }} />
-              <span className="text-slate-700">{s.label}</span>
-            </div>
-          ))}
-          <div className="text-xs text-slate-500 self-center">Total {total}</div>
-        </div>
-      </div>
+      )}
     </div>
   );
 };
 
+// ── Page ─────────────────────────────────────────────────────────────
 export default function DashboardPage() {
-  const { venue } = useAuthStore();
+  const { venue, user } = useAuthStore();
   const [items, setItems] = useState<Item[]>([]);
   const [claims, setClaims] = useState<Claim[]>([]);
+  const [auditEntries, setAuditEntries] = useState<AuditEntry[]>([]);
+  const [staffMap, setStaffMap] = useState<Map<string, string>>(new Map());
   const [loading, setLoading] = useState(true);
+  const [auditLoading, setAuditLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  const isAdmin = user?.role === 'venue_admin' || user?.role === 'admin';
 
   useEffect(() => {
     if (!venue?.id) return;
@@ -360,13 +560,54 @@ export default function DashboardPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [venue?.id]);
 
+  // Fetch audit entries + staff names for Recent Activity (admin only)
+  useEffect(() => {
+    if (!isAdmin || !venue?.id) { setAuditLoading(false); return; }
+
+    let cancelled = false;
+    async function fetchAuditAndStaff() {
+      setAuditLoading(true);
+      try {
+        const [auditRes, staffRes] = await Promise.all([
+          api.audit.getAll(200),
+          api.venues.getStaff(venue!.id),
+        ]);
+        if (cancelled) return;
+
+        if (auditRes.success && auditRes.data) {
+          setAuditEntries(auditRes.data as unknown as AuditEntry[]);
+        }
+        if (staffRes.success && staffRes.data) {
+          const map = new Map<string, string>();
+          (staffRes.data as unknown as User[]).forEach(s => {
+            const name = [s.first_name, s.last_name].filter(Boolean).join(' ') || s.email;
+            map.set(s.id, name);
+          });
+          // Also add current user in case they're not in staff list
+          if (user) {
+            const myName = [user.first_name, user.last_name].filter(Boolean).join(' ') || user.email;
+            map.set(user.id, myName);
+          }
+          setStaffMap(map);
+        }
+      } catch {
+        // non-critical, activity section will show empty
+      } finally {
+        if (!cancelled) setAuditLoading(false);
+      }
+    }
+    fetchAuditAndStaff();
+    return () => { cancelled = true; };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAdmin, venue?.id]);
+
   const dashboardData = useMemo(() => buildDashboardData(items, claims), [items, claims]);
 
   if (loading) {
     return (
       <Layout>
         <div className="flex items-center justify-center h-64">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-slate-900"></div>
           <span className="ml-3 text-slate-600">Loading dashboard&hellip;</span>
         </div>
       </Layout>
@@ -381,7 +622,7 @@ export default function DashboardPage() {
           <p className="text-slate-600">{error}</p>
           <button
             onClick={() => window.location.reload()}
-            className="px-4 py-2 bg-blue-600 text-white rounded-md text-sm hover:bg-blue-700 transition"
+            className="px-4 py-2 bg-slate-900 text-white rounded-lg text-sm hover:bg-slate-800 transition"
           >
             Retry
           </button>
@@ -396,111 +637,72 @@ export default function DashboardPage() {
         {/* Header */}
         <div>
           <h1 className="text-2xl font-bold text-slate-900">Dashboard</h1>
-          <p className="text-slate-600 mt-1">
+          <p className="text-slate-500 mt-1">
             Overview of {venue?.name || 'your venue'}&apos;s lost and found analytics
           </p>
         </div>
 
         {/* Stats Cards */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4">
-          <StatCard
-            title="Total Items"
-            value={dashboardData.totalItems}
-            icon={ChartBarIcon}
-            color="blue"
-          />
-          <StatCard
-            title="Available"
-            value={dashboardData.availableItems}
-            icon={EyeIcon}
-            color="green"
-          />
-          <StatCard
-            title="Claimed"
-            value={dashboardData.claimedItems}
-            icon={UserGroupIcon}
-            color="yellow"
-          />
-          <StatCard
-            title="Collected"
-            value={dashboardData.collectedItems}
-            icon={ArrowTrendingUpIcon}
-            color="blue"
-          />
-          <StatCard
-            title="Expired"
-            value={dashboardData.expiredItems}
-            icon={ClockIcon}
-            color="red"
-          />
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+          <StatCard title="Total Items" value={dashboardData.totalItems} icon={ArchiveBoxIcon} color="slate" />
+          <StatCard title="Available" value={dashboardData.availableItems} icon={EyeIcon} color="green" />
+          <StatCard title="Claimed" value={dashboardData.claimedItems} icon={HandRaisedIcon} color="yellow" />
+          <StatCard title="Paid" value={dashboardData.paidItems} icon={CurrencyPoundIcon} color="purple" />
+          <StatCard title="Collected" value={dashboardData.collectedItems} icon={ArrowTrendingUpIcon} color="blue" />
+          <StatCard title="Expired" value={dashboardData.expiredItems} icon={ClockIcon} color="red" />
         </div>
 
         {/* Charts Row */}
         <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
-          {/* Monthly Pie Chart */}
+          {/* Status Pie Chart (donut) */}
           <div className={`${cardStyles} p-6`}>
-            <MonthlyPieChart data={dashboardData.monthlyTrends} />
+            <StatusPieChart items={items} />
           </div>
 
-            {/* Category Breakdown (narrow) */}
-          <div className={`${cardStyles} p-6`}> 
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-medium text-slate-900">Items by Category</h3>
-              <ChartBarIcon className="h-5 w-5 text-slate-400" />
-            </div>
-            <PieChart data={dashboardData.categoryBreakdown} />
+          {/* Category Breakdown (bar chart) */}
+          <div className={`${cardStyles} p-6`}>
+            <h3 className="text-lg font-medium text-slate-900 mb-4">Items by Category</h3>
+            <CategoryBreakdownChart data={dashboardData.categoryBreakdown} />
           </div>
 
-          {/* Metrics stacked vertically */}
+          {/* Key Metrics */}
           <div className="flex flex-col gap-4">
-            <div className={`${cardStyles} p-6 text-center flex-1`}> 
+            <div className={`${cardStyles} p-6 text-center flex-1`}>
               <div className="text-3xl font-bold text-blue-600">
                 {dashboardData.totalItems > 0
                   ? Math.round((dashboardData.collectedItems / dashboardData.totalItems) * 100)
                   : 0}%
               </div>
               <div className="text-sm text-slate-600 mt-1">Collection Rate</div>
-              <div className="text-xs text-slate-500 mt-1">Items successfully returned to owners</div>
+              <div className="text-xs text-slate-400 mt-1">Items successfully returned</div>
             </div>
-            <div className={`${cardStyles} p-6 text-center flex-1`}> 
-              <div className="text-3xl font-bold text-green-600">
+            <div className={`${cardStyles} p-6 text-center flex-1`}>
+              <div className="text-3xl font-bold text-yellow-600">
                 {dashboardData.totalItems > 0
                   ? Math.round((dashboardData.claimedItems / dashboardData.totalItems) * 100)
                   : 0}%
               </div>
               <div className="text-sm text-slate-600 mt-1">Claim Rate</div>
-              <div className="text-xs text-slate-500 mt-1">Items with active claims</div>
+              <div className="text-xs text-slate-400 mt-1">Items with active claims</div>
             </div>
-            <div className={`${cardStyles} p-6 text-center flex-1`}> 
-              <div className="text-3xl font-bold text-yellow-600">{dashboardData.avgDaysToClaim || '\u2014'}</div>
+            <div className={`${cardStyles} p-6 text-center flex-1`}>
+              <div className="text-3xl font-bold text-slate-700">{dashboardData.avgDaysToClaim || '\u2014'}</div>
               <div className="text-sm text-slate-600 mt-1">Avg. Days to Claim</div>
-              <div className="text-xs text-slate-500 mt-1">Time between found and claimed</div>
+              <div className="text-xs text-slate-400 mt-1">Time between found and claimed</div>
             </div>
           </div>
         </div>
 
-        {/* Recent Activity (now below metrics) */}
-        <div className={`${cardStyles} p-6`}>
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-medium text-slate-900">Recent Activity</h3>
-            <CalendarIcon className="h-5 w-5 text-slate-400" />
-          </div>
-          <div className="space-y-3">
-            {dashboardData.recentActivity.length === 0 ? (
-              <p className="text-sm text-slate-500 text-center py-4">No recent activity</p>
-            ) : (
-              dashboardData.recentActivity.map((activity, index) => (
-                <div key={index} className="flex items-start justify-between gap-2 py-2 border-b border-slate-100 last:border-b-0">
-                  <div className="min-w-0">
-                    <span className="text-sm font-medium text-slate-900">{activity.action}</span>
-                    <span className="text-sm text-slate-600 ml-1 truncate block sm:inline">— {activity.item}</span>
-                  </div>
-                  <span className="text-xs text-slate-500 shrink-0">{activity.time}</span>
-                </div>
-              ))
-            )}
-          </div>
-        </div>
+        {/* Recent Activity */}
+        {isAdmin && (
+          <RecentActivitySection
+            entries={auditEntries}
+            items={items}
+            claims={claims}
+            staffMap={staffMap}
+            isLoading={auditLoading}
+          />
+        )}
       </div>
     </Layout>
   );

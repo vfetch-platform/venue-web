@@ -13,9 +13,10 @@ export const ITEM_CATEGORIES: ItemCategory[] = [
   'other',
 ];
 
-export const ITEM_STATUSES: (ItemStatus | 'collected')[] = [
+export const ITEM_STATUSES: ItemStatus[] = [
   'available',
   'claimed',
+  'paid',
   'collected',
   'expired',
 ];

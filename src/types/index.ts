@@ -82,9 +82,10 @@ export type ItemCategory =
   | 'documents'
   | 'other';
 
-export type ItemStatus = 
+export type ItemStatus =
   | 'available'
   | 'claimed'
+  | 'paid'
   | 'collected'
   | 'collected_code'
   | 'collected_nocode'
@@ -105,6 +106,12 @@ export interface Claim {
   notes?: string;
   query_id?: string;
   search_description?: string;
+  room_number?: string;
+  dates_of_stay?: {
+    checkin: string;
+    checkout: string;
+  };
+  booking_reference?: string;
   verification_questions?: Record<string, unknown>;
   verification_answers?: Record<string, unknown>;
   collected_at?: string;

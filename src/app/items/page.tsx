@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import Image from 'next/image';
 import Layout from '@/components/Layout';
 import ItemModal from '@/components/ItemModal';
@@ -14,10 +14,56 @@ import {
   EyeIcon,
   PencilIcon,
   TrashIcon,
+  ArrowDownTrayIcon,
+  XMarkIcon,
+  CalendarIcon,
+  ClipboardDocumentListIcon,
+  CheckCircleIcon,
+  TagIcon,
+  ClockIcon,
+  CurrencyPoundIcon,
 } from '@heroicons/react/24/outline';
 import { Dialog, DialogBackdrop, DialogPanel, DialogTitle } from '@headlessui/react';
 import Link from 'next/link';
 import { inputStyles } from '@/utils/styles';
+
+// ── Helpers ─────────────────────────────────────────────────────────
+function daysAgo(dateStr: string): number {
+  const d = new Date(dateStr);
+  const now = new Date();
+  return Math.floor((now.getTime() - d.getTime()) / 86400000);
+}
+
+function downloadCSV(items: Item[], startDate: string, endDate: string) {
+  const filtered = items.filter(item => {
+    const d = new Date(item.date_found);
+    return d >= new Date(startDate) && d <= new Date(endDate + 'T23:59:59');
+  });
+
+  const headers = ['ID', 'Title', 'Description', 'Category', 'Status', 'Date Found', 'Location', 'Color', 'Brand', 'Claims', 'Created At'];
+  const rows = filtered.map(item => [
+    item.id,
+    `"${(item.title || '').replace(/"/g, '""')}"`,
+    `"${(item.description || '').replace(/"/g, '""')}"`,
+    item.category,
+    item.status,
+    new Date(item.date_found).toLocaleDateString('en-GB'),
+    `"${(item.location_found || '').replace(/"/g, '""')}"`,
+    item.color || '',
+    item.brand || '',
+    item.claim_count,
+    new Date(item.created_at).toLocaleDateString('en-GB'),
+  ]);
+
+  const csv = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = `items-${startDate}-to-${endDate}.csv`;
+  link.click();
+  URL.revokeObjectURL(url);
+}
 
 
 export default function ItemsPage() {
@@ -25,7 +71,7 @@ export default function ItemsPage() {
   const [items, setItems] = useState<Item[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('');
-  const [selectedStatuses, setSelectedStatuses] = useState<Set<ItemStatus>>(new Set());
+  const [selectedStatus, setSelectedStatus] = useState<ItemStatus | ''>('');
   const [viewingItem, setViewingItem] = useState<Item | null>(null);
   const [editingItem, setEditingItem] = useState<Item | null>(null);
   const [modalMode, setModalMode] = useState<'view' | 'edit'>('view');
@@ -33,48 +79,16 @@ export default function ItemsPage() {
   const [error, setError] = useState<string | null>(null);
   const [deleteModal, setDeleteModal] = useState<{ itemId: string; reason: string } | null>(null);
 
-  // Load items when auth initialized & we have a venue id (from venue object or user.venue_id)
-  useEffect(() => {
-    if (!isInitialized || !isAuthenticated) return; // wait for auth to finish
+  // Export modal
+  const [showExportModal, setShowExportModal] = useState(false);
+  const [exportStartDate, setExportStartDate] = useState(() => {
+    const d = new Date();
+    d.setMonth(d.getMonth() - 1);
+    return d.toISOString().split('T')[0];
+  });
+  const [exportEndDate, setExportEndDate] = useState(() => new Date().toISOString().split('T')[0]);
 
-    const attemptLoad = async () => {
-      const currentState = useAuthStore.getState();
-      const vid = currentState.venue?.id || currentState.user?.venue_id;
-
-      // If venue id available, load (always refresh on mount)
-      if (vid) {
-        await loadItems(vid);
-        return;
-      }
-
-      // If user exists but venue not yet fetched, try fetching venue directly
-      if (currentState.user && !currentState.venue) {
-        try {
-          const vResp = await api.venues.getMyVenue();
-          if (vResp.success && vResp.data?.id) {
-            currentState.setVenue(vResp.data);
-            const newVid = vResp.data.id;
-            await loadItems(newVid);
-            return;
-          }
-        } catch {
-          // swallow; store already logs a warning in initial fetch path
-        }
-      }
-
-      // Retry shortly if still nothing
-      setTimeout(() => {
-        const retryState = useAuthStore.getState();
-        const retryVid = retryState.venue?.id || retryState.user?.venue_id;
-        if (retryVid) loadItems(retryVid);
-      }, 600);
-    };
-
-    void attemptLoad();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isInitialized, isAuthenticated, venue, user]);
-
-  const loadItems = async (explicitVenueId?: string): Promise<void> => {
+  const loadItems = useCallback(async (explicitVenueId?: string): Promise<void> => {
     const venueId = explicitVenueId || venue?.id || user?.venue_id;
     if (!venueId) return;
 
@@ -85,7 +99,6 @@ export default function ItemsPage() {
       const response = await api.items.getByVenue(venueId);
       if (response.success && response.data) {
         setItems(response.data.data);
-
       }
     } catch (error) {
       console.error('Error loading items:', error);
@@ -93,17 +106,51 @@ export default function ItemsPage() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [venue?.id, user?.venue_id]);
+
+  useEffect(() => {
+    if (!isInitialized || !isAuthenticated) return;
+
+    const attemptLoad = async () => {
+      const currentState = useAuthStore.getState();
+      const vid = currentState.venue?.id || currentState.user?.venue_id;
+
+      if (vid) {
+        await loadItems(vid);
+        return;
+      }
+
+      if (currentState.user && !currentState.venue) {
+        try {
+          const vResp = await api.venues.getMyVenue();
+          if (vResp.success && vResp.data?.id) {
+            currentState.setVenue(vResp.data);
+            await loadItems(vResp.data.id);
+            return;
+          }
+        } catch { /* swallow */ }
+      }
+
+      setTimeout(() => {
+        const retryState = useAuthStore.getState();
+        const retryVid = retryState.venue?.id || retryState.user?.venue_id;
+        if (retryVid) loadItems(retryVid);
+      }, 600);
+    };
+
+    void attemptLoad();
+  }, [isInitialized, isAuthenticated, venue, user, loadItems]);
 
   const filteredItems = items.filter(item => {
-    const matchesSearch = searchQuery === '' || 
+    const matchesSearch = searchQuery === '' ||
       item.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
       item.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
       item.tags.some(tag => tag.toLowerCase().includes(searchQuery.toLowerCase()));
-    
+
     const matchesCategory = selectedCategory === '' || item.category === selectedCategory;
-    const matchesStatus = selectedStatuses.size === 0 || selectedStatuses.has(item.status);
-    
+    const matchesStatus = selectedStatus === '' || item.status === selectedStatus ||
+      (selectedStatus === 'collected' && COLLECTED_STATUSES.has(item.status));
+
     return matchesSearch && matchesCategory && matchesStatus;
   });
 
@@ -113,9 +160,12 @@ export default function ItemsPage() {
         return 'bg-green-500 text-white border-green-600';
       case 'claimed':
         return 'bg-yellow-500 text-white border-yellow-600';
+      case 'paid':
+        return 'bg-purple-500 text-white border-purple-600';
       case 'collected_code':
       case 'collected_nocode':
       case 'collected_courier':
+      case 'collected':
         return 'bg-blue-500 text-white border-blue-600';
       case 'expired':
         return 'bg-red-500 text-white border-red-600';
@@ -157,8 +207,8 @@ export default function ItemsPage() {
     try {
       const response = await api.items.update(updatedItem.id, updatedItem);
       if (response.success && response.data) {
-        setItems(prev => 
-          prev.map(item => 
+        setItems(prev =>
+          prev.map(item =>
             item.id === updatedItem.id ? response.data : item
           )
         );
@@ -174,17 +224,59 @@ export default function ItemsPage() {
     setViewingItem(null);
   };
 
-  // Pagination state
+  // Pagination
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 5;
   const totalPages = Math.ceil(filteredItems.length / itemsPerPage);
   const pagedItems = filteredItems.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
-  // Stats
+  // Stats - count from items list
   const availableCount = items.filter(i => i.status === 'available').length;
   const claimedCount = items.filter(i => i.status === 'claimed').length;
+  const paidCount = items.filter(i => i.status === 'paid').length;
   const collectedCount = items.filter(i => COLLECTED_STATUSES.has(i.status)).length;
   const expiredCount = items.filter(i => i.status === 'expired').length;
+
+  const statusCards: {
+    label: string; count: number; status: ItemStatus | '';
+    icon: React.ComponentType<React.SVGProps<SVGSVGElement>>; iconColor: string; iconBg: string;
+    badge?: string; badgeColor?: string;
+    subtitle: string; subtitleColor?: string;
+  }[] = [
+    {
+      label: 'Available', count: availableCount, status: 'available',
+      icon: ClipboardDocumentListIcon, iconColor: 'text-blue-500', iconBg: 'bg-blue-50',
+      badge: 'Live', badgeColor: 'text-green-600 bg-green-100',
+      subtitle: availableCount > 0 ? `${availableCount} items in storage` : 'No items in storage',
+    },
+    {
+      label: 'Claimed', count: claimedCount, status: 'claimed',
+      icon: CheckCircleIcon, iconColor: 'text-blue-500', iconBg: 'bg-blue-50',
+      subtitle: claimedCount > 0 ? `${claimedCount} pending review` : 'No pending claims',
+    },
+    {
+      label: 'Paid', count: paidCount, status: 'paid',
+      icon: CurrencyPoundIcon, iconColor: 'text-purple-500', iconBg: 'bg-purple-50',
+      subtitle: paidCount > 0 ? `${paidCount} awaiting collection` : 'No paid claims',
+    },
+    {
+      label: 'Collected', count: collectedCount, status: 'collected',
+      icon: TagIcon, iconColor: 'text-purple-500', iconBg: 'bg-purple-50',
+      subtitle: collectedCount > 0 ? `${collectedCount} returned` : 'All clear for today',
+    },
+    {
+      label: 'Expired', count: expiredCount, status: 'expired',
+      icon: ClockIcon, iconColor: 'text-red-400', iconBg: 'bg-red-50',
+      subtitle: expiredCount > 0
+        ? `Avg ${Math.round(items.filter(i => i.status === 'expired').reduce((s, i) => s + daysAgo(i.date_found), 0) / expiredCount)} days`
+        : 'Well within retention limits',
+    },
+  ];
+
+  const formatStatusLabel = (status: string) => {
+    if (status.startsWith('collected_')) return 'COLLECTED';
+    return status.toUpperCase();
+  };
 
   return (
     <Layout>
@@ -192,14 +284,15 @@ export default function ItemsPage() {
         {/* Page header */}
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">Item Management</h1>
-            <p className="text-gray-500 mt-1 text-sm">Manage and track lost items at your venue in real-time.</p>
+            <h1 className="text-2xl font-bold text-slate-900">Item Management</h1>
+            <p className="text-slate-500 mt-1 text-sm">Manage and track lost items at your venue in real-time.</p>
           </div>
           <div className="flex gap-3">
-            <button className="inline-flex items-center px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">
-              <svg className="h-4 w-4 mr-2 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-              </svg>
+            <button
+              onClick={() => setShowExportModal(true)}
+              className="inline-flex items-center px-4 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 transition-colors"
+            >
+              <ArrowDownTrayIcon className="h-4 w-4 mr-2 text-slate-500" />
               Export Data
             </button>
             <Link
@@ -212,79 +305,59 @@ export default function ItemsPage() {
           </div>
         </div>
 
-        {/* Stats cards */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          {/* Available */}
-          <div className="bg-white rounded-xl border border-gray-200 p-4 relative">
-            <div className="flex items-start justify-between mb-3">
-              <div className="w-10 h-10 bg-blue-50 rounded-lg flex items-center justify-center">
-                <svg className="h-5 w-5 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-                </svg>
-              </div>
-              <span className="text-[10px] font-semibold text-green-600 bg-green-100 px-1.5 py-0.5 rounded uppercase tracking-wide">Live</span>
-            </div>
-            <div className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">Available</div>
-            <div className="text-3xl font-bold text-gray-900">{availableCount}</div>
-            <div className="text-xs text-green-600 mt-1 font-medium">↑ +2 since yesterday</div>
-          </div>
-          {/* Claimed */}
-          <div className="bg-white rounded-xl border border-gray-200 p-4">
-            <div className="w-10 h-10 bg-blue-50 rounded-lg flex items-center justify-center mb-3">
-              <svg className="h-5 w-5 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-            </div>
-            <div className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">Claimed</div>
-            <div className="text-3xl font-bold text-gray-900">{claimedCount}</div>
-            <div className="text-xs text-gray-400 mt-1">No pending claims</div>
-          </div>
-          {/* Collected */}
-          <div className="bg-white rounded-xl border border-gray-200 p-4">
-            <div className="w-10 h-10 bg-purple-50 rounded-lg flex items-center justify-center mb-3">
-              <svg className="h-5 w-5 text-purple-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
-              </svg>
-            </div>
-            <div className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">Collected</div>
-            <div className="text-3xl font-bold text-gray-900">{collectedCount}</div>
-            <div className="text-xs text-gray-400 mt-1">All clear for today</div>
-          </div>
-          {/* Expired */}
-          <div className="bg-white rounded-xl border border-gray-200 p-4">
-            <div className="w-10 h-10 bg-red-50 rounded-lg flex items-center justify-center mb-3">
-              <svg className="h-5 w-5 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-            </div>
-            <div className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">Expired</div>
-            <div className="text-3xl font-bold text-gray-900">{expiredCount}</div>
-            <div className="text-xs text-gray-400 mt-1">Well within retention limits</div>
-          </div>
+        {/* Stats cards - clickable to filter */}
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
+          {statusCards.map(card => {
+            const isActive = selectedStatus === card.status;
+            return (
+              <button
+                key={card.label}
+                onClick={() => {
+                  setSelectedStatus(isActive ? '' : card.status as ItemStatus);
+                  setCurrentPage(1);
+                }}
+                className={`bg-white rounded-xl border p-4 text-left transition-all relative ${
+                  isActive ? 'border-slate-900 shadow-sm ring-1 ring-slate-900' : 'border-gray-200 hover:border-gray-300'
+                }`}
+              >
+                {/* Icon + badge row */}
+                <div className="flex items-start justify-between mb-3">
+                  <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${card.iconBg}`}>
+                    <card.icon className={`h-5 w-5 ${card.iconColor}`} />
+                  </div>
+                  {card.badge && (
+                    <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded uppercase tracking-wide ${card.badgeColor}`}>
+                      {card.badge}
+                    </span>
+                  )}
+                </div>
+                {/* Label */}
+                <div className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">{card.label}</div>
+                {/* Count */}
+                <div className="text-3xl font-bold text-gray-900">{card.count}</div>
+                {/* Subtitle */}
+                <div className={`text-xs mt-1 ${card.subtitleColor || 'text-gray-400'}`}>{card.subtitle}</div>
+              </button>
+            );
+          })}
         </div>
 
         {/* Search + Filters bar */}
         <div className="flex flex-wrap gap-3 items-center">
           {/* Search */}
           <div className="relative flex-1 min-w-[200px] max-w-sm">
-            <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+            <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
             <input
               type="text"
-              placeholder="Search by item name, ID, or notes..."
-              className="w-full pl-9 pr-4 py-2 text-sm border border-gray-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-slate-500 focus:border-teal-300"
+              placeholder="Search by item name, ID, or tags..."
+              className="w-full pl-9 pr-4 py-2 text-sm border border-slate-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-slate-500 focus:border-slate-300"
               value={searchQuery}
               onChange={(e) => { setSearchQuery(e.target.value); setCurrentPage(1); }}
             />
           </div>
-          {/* Filter icon button */}
-          <button className="p-2 border border-gray-200 rounded-lg bg-white text-gray-500 hover:bg-gray-50 transition-colors" title="More filters">
-            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
-            </svg>
-          </button>
           {/* Category dropdown */}
           <select
-            className="py-2 pl-3 pr-8 text-sm border border-gray-200 rounded-lg bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-slate-500 appearance-none"
+            className="py-2 pl-3 pr-8 text-sm border border-slate-200 rounded-lg bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-slate-500 appearance-none"
             value={selectedCategory}
             onChange={(e) => { setSelectedCategory(e.target.value); setCurrentPage(1); }}
           >
@@ -295,30 +368,25 @@ export default function ItemsPage() {
               </option>
             ))}
           </select>
-          {/* Status dropdown */}
-          <select
-            className="py-2 pl-3 pr-8 text-sm border border-gray-200 rounded-lg bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-slate-500 appearance-none"
-            value={selectedStatuses.size === 0 ? '' : Array.from(selectedStatuses)[0]}
-            onChange={(e) => {
-              setCurrentPage(1);
-              if (!e.target.value) {
-                setSelectedStatuses(new Set());
-              } else {
-                setSelectedStatuses(new Set([e.target.value as ItemStatus]));
-              }
-            }}
-          >
-            <option value="">Active Only</option>
-            <option value="available">Available</option>
-            <option value="claimed">Claimed</option>
-            <option value="collected_code">Collected</option>
-            <option value="expired">Expired</option>
-          </select>
+          {/* Active filter chips */}
+          {(selectedStatus || selectedCategory || searchQuery) && (
+            <button
+              onClick={() => {
+                setSelectedStatus('');
+                setSelectedCategory('');
+                setSearchQuery('');
+                setCurrentPage(1);
+              }}
+              className="inline-flex items-center px-3 py-1.5 text-xs font-medium text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-full transition-colors"
+            >
+              <XMarkIcon className="h-3 w-3 mr-1" />
+              Clear filters
+            </button>
+          )}
         </div>
 
         {/* Items table */}
         <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-          {/* Error State */}
           {error && (
             <div className="p-6 bg-red-50 border-l-4 border-red-400">
               <p className="text-red-700">{error}</p>
@@ -328,25 +396,22 @@ export default function ItemsPage() {
             </div>
           )}
 
-          {/* Loading State */}
           {isLoading && (
             <div className="p-12 text-center">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-slate-900 mx-auto"></div>
-              <p className="mt-3 text-sm text-gray-500">Loading items...</p>
+              <p className="mt-3 text-sm text-slate-500">Loading items...</p>
             </div>
           )}
 
-          {/* Empty State - no venue linked */}
           {!isLoading && !error && isInitialized && isAuthenticated && user && !venue && !user.venue_id && (
-            <div className="p-12 text-center text-gray-500">
+            <div className="p-12 text-center text-slate-500">
               <p>Your account is not linked to a venue yet.</p>
               <p className="text-xs mt-2">Ask an admin to associate you with a venue.</p>
             </div>
           )}
 
-          {/* Empty State - no items */}
           {!isLoading && !error && filteredItems.length === 0 && items.length === 0 && (venue || user?.venue_id) && (
-            <div className="p-12 text-center text-gray-500">
+            <div className="p-12 text-center text-slate-500">
               <p>No items found. Add your first lost item to get started.</p>
               <Link href="/items/add" className="mt-4 inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-slate-900 rounded-lg hover:bg-slate-800">
                 <PlusIcon className="h-4 w-4 mr-2" />
@@ -355,14 +420,12 @@ export default function ItemsPage() {
             </div>
           )}
 
-          {/* Filter empty */}
           {!isLoading && !error && filteredItems.length === 0 && items.length > 0 && (
-            <div className="p-12 text-center text-gray-500 text-sm">
+            <div className="p-12 text-center text-slate-500 text-sm">
               No items found matching your criteria.
             </div>
           )}
 
-          {/* Table */}
           {!isLoading && !error && filteredItems.length > 0 && (
             <>
               {/* Mobile cards */}
@@ -371,22 +434,22 @@ export default function ItemsPage() {
                   <li key={item.id} className="p-4 space-y-2">
                     <div className="flex items-start gap-3">
                       {item.images?.[0] ? (
-                        <Image src={item.images[0]} alt={item.title} width={40} height={40} className="w-10 h-10 rounded-lg object-cover shrink-0 bg-gray-100" />
+                        <Image src={item.images[0]} alt={item.title} width={40} height={40} sizes="40px" quality={60} loading="lazy" className="w-10 h-10 rounded-lg object-cover shrink-0 bg-gray-100" />
                       ) : (
                         <div className="w-10 h-10 rounded-lg bg-gray-100 shrink-0" />
                       )}
                       <div className="min-w-0 flex-1">
-                        <div className="text-sm font-semibold text-gray-900 truncate">{item.title}</div>
-                        <div className="text-xs text-gray-400">#{item.id?.slice(-5)} • {item.description}</div>
+                        <div className="text-sm font-semibold text-slate-900 truncate">{item.title}</div>
+                        <div className="text-xs text-slate-400">#{item.id?.slice(-5)} &middot; {item.description}</div>
                       </div>
                       <span className={`shrink-0 inline-flex px-2 py-0.5 text-[10px] font-semibold rounded-full ${getStatusColor(item.status)}`}>
-                        {item.status === 'available' ? '● AVAILABLE' : item.status.replace('collected_', 'collected ').toUpperCase()}
+                        {formatStatusLabel(item.status)}
                       </span>
                     </div>
                     <div className="flex gap-2 pt-1">
-                      <button onClick={() => handleViewItem(item)} className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded" title="View"><EyeIcon className="h-4 w-4" /></button>
-                      <button onClick={() => handleEditItem(item)} className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded" title="Edit"><PencilIcon className="h-4 w-4" /></button>
-                      <button onClick={() => handleDeleteItem(item.id)} className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded" title="Delete"><TrashIcon className="h-4 w-4" /></button>
+                      <button onClick={() => handleViewItem(item)} className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded" title="View"><EyeIcon className="h-4 w-4" /></button>
+                      <button onClick={() => handleEditItem(item)} className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded" title="Edit"><PencilIcon className="h-4 w-4" /></button>
+                      <button onClick={() => handleDeleteItem(item.id)} className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded" title="Delete"><TrashIcon className="h-4 w-4" /></button>
                     </div>
                   </li>
                 ))}
@@ -397,12 +460,12 @@ export default function ItemsPage() {
                 <table className="min-w-full">
                   <thead>
                     <tr className="border-b border-gray-100">
-                      <th className="px-6 py-3 text-left text-xs font-semibold text-gray-400 uppercase tracking-wider">Item Details</th>
-                      <th className="px-6 py-3 text-left text-xs font-semibold text-gray-400 uppercase tracking-wider">Category</th>
-                      <th className="px-6 py-3 text-left text-xs font-semibold text-gray-400 uppercase tracking-wider">Status</th>
-                      <th className="px-6 py-3 text-left text-xs font-semibold text-gray-400 uppercase tracking-wider">Date Found</th>
-                      <th className="px-6 py-3 text-left text-xs font-semibold text-gray-400 uppercase tracking-wider">Claims</th>
-                      <th className="px-6 py-3 text-left text-xs font-semibold text-gray-400 uppercase tracking-wider">Actions</th>
+                      <th className="px-6 py-3 text-left text-xs font-semibold text-slate-400 uppercase tracking-wider">Item Details</th>
+                      <th className="px-6 py-3 text-left text-xs font-semibold text-slate-400 uppercase tracking-wider">Category</th>
+                      <th className="px-6 py-3 text-left text-xs font-semibold text-slate-400 uppercase tracking-wider">Status</th>
+                      <th className="px-6 py-3 text-left text-xs font-semibold text-slate-400 uppercase tracking-wider">Date Found</th>
+                      <th className="px-6 py-3 text-left text-xs font-semibold text-slate-400 uppercase tracking-wider">Claims</th>
+                      <th className="px-6 py-3 text-left text-xs font-semibold text-slate-400 uppercase tracking-wider">Actions</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-50">
@@ -411,41 +474,43 @@ export default function ItemsPage() {
                         <td className="px-6 py-4">
                           <div className="flex items-center gap-3">
                             {item.images?.[0] ? (
-                              <Image src={item.images[0]} alt={item.title} width={40} height={40} className="w-10 h-10 rounded-lg object-cover bg-gray-100 shrink-0" />
+                              <Image src={item.images[0]} alt={item.title} width={40} height={40} sizes="40px" quality={60} loading="lazy" className="w-10 h-10 rounded-lg object-cover bg-gray-100 shrink-0" />
                             ) : (
                               <div className="w-10 h-10 rounded-lg bg-gray-100 shrink-0" />
                             )}
                             <div className="min-w-0">
-                              <div className="text-sm font-semibold text-gray-900 truncate">{item.title}</div>
-                              <div className="text-xs text-gray-400">#{item.id?.slice(-5)} • {item.description?.slice(0, 30)}{item.description?.length > 30 ? '…' : ''}</div>
+                              <div className="text-sm font-semibold text-slate-900 truncate">{item.title}</div>
+                              <div className="text-xs text-slate-400">#{item.id?.slice(-5)} &middot; {item.description?.slice(0, 30)}{(item.description?.length ?? 0) > 30 ? '…' : ''}</div>
                             </div>
                           </div>
                         </td>
                         <td className="px-6 py-4">
-                          <span className="inline-flex px-2 py-0.5 text-xs font-semibold rounded bg-gray-100 text-gray-700 uppercase tracking-wide">
+                          <span className="inline-flex px-2 py-0.5 text-xs font-semibold rounded bg-slate-100 text-slate-700 uppercase tracking-wide">
                             {item.category}
                           </span>
                         </td>
                         <td className="px-6 py-4">
                           <span className={`inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold rounded-full ${getStatusColor(item.status)}`}>
                             {item.status === 'available' && <span className="w-1.5 h-1.5 bg-white rounded-full inline-block" />}
-                            {item.status === 'available' ? 'AVAILABLE' : item.status.replace('collected_', 'collected ').toUpperCase()}
+                            {formatStatusLabel(item.status)}
                           </span>
+                          {item.status === 'expired' && (
+                            <div className="text-[10px] text-slate-400 mt-0.5">{daysAgo(item.date_found)} days</div>
+                          )}
                         </td>
-                        <td className="px-6 py-4 text-sm text-gray-500 whitespace-nowrap">
-                          {new Date(item.date_found).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-                          <div className="text-xs text-gray-400">{new Date(item.date_found).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}</div>
+                        <td className="px-6 py-4 text-sm text-slate-500 whitespace-nowrap">
+                          {new Date(item.date_found).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
                         </td>
                         <td className="px-6 py-4">
-                          <span className="inline-flex w-6 h-6 items-center justify-center rounded-full bg-gray-100 text-xs font-semibold text-gray-600">
+                          <span className="inline-flex w-6 h-6 items-center justify-center rounded-full bg-slate-100 text-xs font-semibold text-slate-600">
                             {item.claim_count}
                           </span>
                         </td>
                         <td className="px-6 py-4">
                           <div className="flex items-center gap-1">
-                            <button onClick={() => handleViewItem(item)} className="p-1.5 text-gray-400 hover:text-slate-900 hover:bg-slate-50 rounded transition-colors" title="View"><EyeIcon className="h-4 w-4" /></button>
-                            <button onClick={() => handleEditItem(item)} className="p-1.5 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded transition-colors" title="Edit"><PencilIcon className="h-4 w-4" /></button>
-                            <button onClick={() => handleDeleteItem(item.id)} className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded transition-colors" title="Delete"><TrashIcon className="h-4 w-4" /></button>
+                            <button onClick={() => handleViewItem(item)} className="p-1.5 text-slate-400 hover:text-slate-900 hover:bg-slate-50 rounded transition-colors" title="View"><EyeIcon className="h-4 w-4" /></button>
+                            <button onClick={() => handleEditItem(item)} className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded transition-colors" title="Edit"><PencilIcon className="h-4 w-4" /></button>
+                            <button onClick={() => handleDeleteItem(item.id)} className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded transition-colors" title="Delete"><TrashIcon className="h-4 w-4" /></button>
                           </div>
                         </td>
                       </tr>
@@ -456,34 +521,46 @@ export default function ItemsPage() {
 
               {/* Pagination */}
               <div className="px-6 py-4 border-t border-gray-100 flex items-center justify-between">
-                <span className="text-xs text-gray-400">
+                <span className="text-xs text-slate-400">
                   Showing {(currentPage - 1) * itemsPerPage + 1}–{Math.min(currentPage * itemsPerPage, filteredItems.length)} of {filteredItems.length} items
                 </span>
                 <div className="flex items-center gap-1">
                   <button
                     onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
                     disabled={currentPage === 1}
-                    className="p-1.5 rounded border border-gray-200 text-gray-400 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                    className="p-1.5 rounded border border-slate-200 text-slate-400 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                   >
                     <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
                   </button>
-                  {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
-                    <button
-                      key={page}
-                      onClick={() => setCurrentPage(page)}
-                      className={`w-8 h-8 rounded text-sm font-medium transition-colors ${
-                        page === currentPage
-                          ? 'bg-slate-900 text-white'
-                          : 'border border-gray-200 text-gray-600 hover:bg-gray-50'
-                      }`}
-                    >
-                      {page}
-                    </button>
-                  ))}
+                  {Array.from({ length: Math.min(totalPages, 7) }, (_, i) => {
+                    let page: number;
+                    if (totalPages <= 7) {
+                      page = i + 1;
+                    } else if (currentPage <= 4) {
+                      page = i + 1;
+                    } else if (currentPage >= totalPages - 3) {
+                      page = totalPages - 6 + i;
+                    } else {
+                      page = currentPage - 3 + i;
+                    }
+                    return (
+                      <button
+                        key={page}
+                        onClick={() => setCurrentPage(page)}
+                        className={`w-8 h-8 rounded text-sm font-medium transition-colors ${
+                          page === currentPage
+                            ? 'bg-slate-900 text-white'
+                            : 'border border-slate-200 text-slate-600 hover:bg-slate-50'
+                        }`}
+                      >
+                        {page}
+                      </button>
+                    );
+                  })}
                   <button
                     onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
                     disabled={currentPage === totalPages}
-                    className="p-1.5 rounded border border-gray-200 text-gray-400 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                    className="p-1.5 rounded border border-slate-200 text-slate-400 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                   >
                     <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
                   </button>
@@ -535,6 +612,63 @@ export default function ItemsPage() {
                   className="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   Delete
+                </button>
+              </div>
+            </DialogPanel>
+          </div>
+        </Dialog>
+
+        {/* Export CSV Modal */}
+        <Dialog open={showExportModal} onClose={() => setShowExportModal(false)} className="relative z-50">
+          <DialogBackdrop className="fixed inset-0 bg-black/30" />
+          <div className="fixed inset-0 flex items-center justify-center p-4">
+            <DialogPanel className="mx-auto max-w-sm w-full rounded-xl bg-white p-6 shadow-xl">
+              <DialogTitle className="text-lg font-semibold text-slate-900 mb-1">
+                Export Items as CSV
+              </DialogTitle>
+              <p className="text-sm text-slate-500 mb-4">Select a date range for the export.</p>
+              <div className="space-y-3">
+                <div>
+                  <label className="block text-xs font-medium text-slate-600 mb-1">Start Date</label>
+                  <div className="relative">
+                    <CalendarIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                    <input
+                      type="date"
+                      value={exportStartDate}
+                      onChange={(e) => setExportStartDate(e.target.value)}
+                      className={`${inputStyles} pl-9`}
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-slate-600 mb-1">End Date</label>
+                  <div className="relative">
+                    <CalendarIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                    <input
+                      type="date"
+                      value={exportEndDate}
+                      onChange={(e) => setExportEndDate(e.target.value)}
+                      className={`${inputStyles} pl-9`}
+                    />
+                  </div>
+                </div>
+              </div>
+              <div className="flex justify-end gap-3 mt-6">
+                <button
+                  onClick={() => setShowExportModal(false)}
+                  className="px-4 py-2 text-sm font-medium text-slate-700 bg-slate-100 rounded-lg hover:bg-slate-200"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={() => {
+                    downloadCSV(items, exportStartDate, exportEndDate);
+                    setShowExportModal(false);
+                  }}
+                  className="px-4 py-2 text-sm font-medium text-white bg-slate-900 rounded-lg hover:bg-slate-800"
+                >
+                  <ArrowDownTrayIcon className="h-4 w-4 inline mr-1" />
+                  Download CSV
                 </button>
               </div>
             </DialogPanel>

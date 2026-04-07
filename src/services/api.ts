@@ -312,10 +312,10 @@ export const api = {
     },
 
     // Update claim status (currently supports 'approved' or 'rejected')
-    updateStatus: async (id: string, status: 'approved' | 'rejected') => {
+    updateStatus: async (id: string, status: 'approved' | 'rejected', reason?: string) => {
       return apiRequest<ApiResponse<Claim>>(`/claims/${id}/status`, {
         method: 'PATCH',
-        body: JSON.stringify({ status }),
+        body: JSON.stringify({ status, ...(reason ? { reason } : {}) }),
       });
     },
 
@@ -330,6 +330,49 @@ export const api = {
     getByVenue: async (venueId: string, params?: Record<string, string | number>) => {
       const queryString = params ? `?${new URLSearchParams(params as Record<string, string>).toString()}` : '';
       return apiRequest<ApiResponse<PaginatedResponse<Claim>>>(`/claims/venue/${venueId}${queryString}`);
+    },
+  },
+
+  // Notification endpoints
+  notifications: {
+    getAll: async (params?: { isRead?: boolean; limit?: number; page?: number }) => {
+      const qp = new URLSearchParams();
+      if (params?.isRead !== undefined) qp.set('isRead', String(params.isRead));
+      if (params?.limit) qp.set('limit', String(params.limit));
+      if (params?.page) qp.set('page', String(params.page));
+      const qs = qp.toString() ? `?${qp.toString()}` : '';
+      return apiRequest<ApiResponse<PaginatedResponse<{
+        id: string;
+        user_id: string;
+        title: string;
+        message: string;
+        type: string;
+        data?: Record<string, unknown>;
+        is_read: boolean;
+        created_at: string;
+      }>>>(`/notifications${qs}`);
+    },
+
+    getUnreadCount: async () => {
+      return apiRequest<ApiResponse<{ unreadCount: number }>>('/notifications/unread-count');
+    },
+
+    markAsRead: async (id: string) => {
+      return apiRequest<ApiResponse<null>>(`/notifications/${id}/read`, {
+        method: 'PATCH',
+      });
+    },
+
+    markAllAsRead: async () => {
+      return apiRequest<ApiResponse<null>>('/notifications/mark-all-read', {
+        method: 'PATCH',
+      });
+    },
+
+    delete: async (id: string) => {
+      return apiRequest<ApiResponse<null>>(`/notifications/${id}`, {
+        method: 'DELETE',
+      });
     },
   },
 

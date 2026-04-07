@@ -1,7 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Layout from '@/components/Layout';
+import { useAuthStore } from '@/store/auth';
 import {
   EnvelopeIcon,
   QuestionMarkCircleIcon,
@@ -11,9 +12,21 @@ import {
 import { buttonStyles, cardStyles, inputStyles } from '@/utils/styles';
 
 export default function SupportPage() {
+  const { user } = useAuthStore();
   const [form, setForm] = useState({ name: '', email: '', subject: '', message: '' });
   const [submitted, setSubmitted] = useState(false);
   const [loading, setLoading] = useState(false);
+
+  // Auto-fill name and email from logged-in user
+  useEffect(() => {
+    if (user) {
+      setForm(prev => ({
+        ...prev,
+        name: [user.first_name, user.last_name].filter(Boolean).join(' '),
+        email: user.email || '',
+      }));
+    }
+  }, [user]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     setForm(prev => ({ ...prev, [e.target.name]: e.target.value }));

@@ -16,7 +16,7 @@ import { useAuthStore } from '@/store/auth';
 
 export default function AddItemPage() {
   const router = useRouter();
-  const { venue } = useAuthStore();
+  useAuthStore();
   const [isLoading, setIsLoading] = useState(false);
   const [formData, setFormData] = useState<CreateItemForm>({
     title: '',
@@ -28,9 +28,10 @@ export default function AddItemPage() {
     brand: '',
     model: '',
     serialNumber: '',
-    locationFound: venue?.address || '',
+    locationFound: '',
     images: [],
   });
+  const [roomNumber, setRoomNumber] = useState('');
   const [tagInput, setTagInput] = useState('');
   const [formUnlocked, setFormUnlocked] = useState(false);
 
@@ -93,16 +94,22 @@ interface GeneratedFeatures {
     setFormData(prev => ({ ...prev, images }));
   };
 
+  const isFormValid = formData.title.trim() !== '' && formData.description.trim() !== '' && formData.dateFound !== '';
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!isFormValid) return;
     setIsLoading(true);
 
     try {
-      await api.items.create(formData);
+      const submitData = {
+        ...formData,
+        locationFound: roomNumber.trim() ? `Room ${roomNumber.trim()}` : formData.locationFound,
+      };
+      await api.items.create(submitData);
       router.push(ROUTES.ITEMS);
     } catch (error) {
       console.error('Error creating item:', error);
-      // TODO: Show proper error message to user
     } finally {
       setIsLoading(false);
     }
@@ -190,20 +197,37 @@ interface GeneratedFeatures {
             />
           </div>
 
-          {/* Date Found */}
-          <div>
-            <label htmlFor="dateFound" className="block text-sm font-medium text-gray-700 mb-1">
-              Date Found *
-            </label>
-            <input
-              type="date"
-              id="dateFound"
-              name="dateFound"
-              required
-              className={inputStyles}
-              value={formData.dateFound}
-              onChange={handleInputChange}
-            />
+          {/* Date Found + Room Number */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label htmlFor="dateFound" className="block text-sm font-medium text-gray-700 mb-1">
+                Date Found *
+              </label>
+              <input
+                type="date"
+                id="dateFound"
+                name="dateFound"
+                required
+                className={inputStyles}
+                value={formData.dateFound}
+                onChange={handleInputChange}
+              />
+            </div>
+
+            <div>
+              <label htmlFor="roomNumber" className="block text-sm font-medium text-gray-700 mb-1">
+                Room Number
+              </label>
+              <input
+                type="text"
+                id="roomNumber"
+                name="roomNumber"
+                className={inputStyles}
+                placeholder="e.g., 204, Lobby, Bar Area"
+                value={roomNumber}
+                onChange={(e) => setRoomNumber(e.target.value)}
+              />
+            </div>
           </div>
 
           {/* Item Details */}
@@ -315,13 +339,15 @@ interface GeneratedFeatures {
             >
               Cancel
             </button>
-            <button
-              type="submit"
-              disabled={isLoading}
-              className={buttonStyles.primary}
-            >
-              {isLoading ? 'Creating Item...' : 'Create Item'}
-            </button>
+            {isFormValid && (
+              <button
+                type="submit"
+                disabled={isLoading}
+                className={buttonStyles.primary}
+              >
+                {isLoading ? 'Creating Item...' : 'Create Item'}
+              </button>
+            )}
           </div>
         </form>
       </div>

@@ -7,7 +7,6 @@ import { Item } from '@/types';
 import {
   XMarkIcon,
   PhotoIcon,
-  MapPinIcon,
   CalendarIcon,
   TagIcon,
 } from '@heroicons/react/24/outline';
@@ -60,7 +59,7 @@ export default function ItemModal({ item, isOpen, mode, onClose, onSave }: ItemM
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     if (isViewMode) return;
-    
+
     const { name, value } = e.target;
     setEditData(prev => prev ? {
       ...prev,
@@ -92,6 +91,8 @@ export default function ItemModal({ item, isOpen, mode, onClose, onSave }: ItemM
         return 'bg-green-100 text-green-800';
       case 'claimed':
         return 'bg-yellow-100 text-yellow-800';
+      case 'paid':
+        return 'bg-purple-100 text-purple-800';
       case 'collected':
       case 'collected_courier':
       case 'collected_nocode':
@@ -100,7 +101,7 @@ export default function ItemModal({ item, isOpen, mode, onClose, onSave }: ItemM
       case 'expired':
         return 'bg-red-100 text-red-800';
       default:
-        return 'bg-gray-100 text-gray-800';
+        return 'bg-slate-100 text-slate-800';
     }
   };
 
@@ -141,10 +142,10 @@ export default function ItemModal({ item, isOpen, mode, onClose, onSave }: ItemM
               <span className={`inline-flex px-3 py-1 text-sm font-semibold rounded-full ${getStatusColor(currentData.status)}`}>
                 {currentData.status.replace('_', ' ').toUpperCase()}
               </span>
-              <div className="text-sm text-gray-500">
+              <div className="text-sm text-slate-500">
                 <div className="flex items-center">
                   <CalendarIcon className="h-4 w-4 mr-1" />
-                  Found: {new Date(currentData.date_found).toLocaleDateString()}
+                  Found: {new Date(currentData.date_found).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
                 </div>
                 <div className="flex items-center mt-1">
                   <TagIcon className="h-4 w-4 mr-1" />
@@ -157,7 +158,7 @@ export default function ItemModal({ item, isOpen, mode, onClose, onSave }: ItemM
           {/* Collection Section (Edit mode when claimed or already collected) */}
           {!isViewMode && (item.status === 'claimed' || COLLECTED_STATUSES.has(item.status)) && (
             <div className="space-y-2">
-              <label className="block text-sm font-medium text-gray-700">{COLLECTED_STATUSES.has(item.status) ? 'Update Collection Method' : 'Mark as Collected'}</label>
+              <label className="block text-sm font-medium text-slate-700">{COLLECTED_STATUSES.has(item.status) ? 'Update Collection Method' : 'Mark as Collected'}</label>
               <div className="space-y-2 text-sm">
                 <label className="flex items-center gap-2">
                   <input
@@ -189,7 +190,7 @@ export default function ItemModal({ item, isOpen, mode, onClose, onSave }: ItemM
                   />
                   <span>Collected by courier</span>
                 </label>
-                <p className="text-xs text-gray-500">{COLLECTED_STATUSES.has(item.status) ? 'Change the collection method and save.' : 'Select a collection method then save to update status.'}</p>
+                <p className="text-xs text-slate-500">{COLLECTED_STATUSES.has(item.status) ? 'Change the collection method and save.' : 'Select a collection method then save to update status.'}</p>
               </div>
             </div>
           )}
@@ -202,17 +203,14 @@ export default function ItemModal({ item, isOpen, mode, onClose, onSave }: ItemM
               </label>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {currentData.images.map((imageUrl, index) => (
-                  <div 
-                    key={index} 
+                  <div
+                    key={index}
                     className="relative group cursor-pointer"
                     onClick={(e) => {
                       e.preventDefault();
-                      // Try multiple methods to open the image
                       try {
-                        // Method 1: Direct window.open
                         const newTab = window.open(imageUrl, '_blank', 'noopener,noreferrer');
                         if (!newTab) {
-                          // Method 2: Create a temporary link and click it
                           const link = document.createElement('a');
                           link.href = imageUrl;
                           link.target = '_blank';
@@ -223,7 +221,6 @@ export default function ItemModal({ item, isOpen, mode, onClose, onSave }: ItemM
                         }
                       } catch (error) {
                         console.error('Failed to open image:', error);
-                        // Method 3: Fallback to location.href
                         window.location.href = imageUrl;
                       }
                     }}
@@ -233,6 +230,8 @@ export default function ItemModal({ item, isOpen, mode, onClose, onSave }: ItemM
                       alt={`${currentData.title} - Photo ${index + 1}`}
                       width={300}
                       height={200}
+                      sizes="(min-width: 1024px) 200px, (min-width: 768px) 250px, 100vw"
+                      quality={60}
                       className="w-full h-32 object-cover rounded-lg border border-slate-200 shadow-sm hover:shadow-md transition-shadow"
                       onError={(e) => {
                         const target = e.target as HTMLImageElement;
@@ -274,11 +273,11 @@ export default function ItemModal({ item, isOpen, mode, onClose, onSave }: ItemM
           {/* Basic Information */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-slate-700 mb-1">
                 Item Title
               </label>
               {isViewMode ? (
-                <p className="text-sm text-gray-900 font-medium">{currentData.title}</p>
+                <p className="text-sm text-slate-900 font-medium">{currentData.title}</p>
               ) : (
                 <input
                   type="text"
@@ -291,11 +290,11 @@ export default function ItemModal({ item, isOpen, mode, onClose, onSave }: ItemM
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-slate-700 mb-1">
                 Category
               </label>
               {isViewMode ? (
-                <p className="text-sm text-gray-900 capitalize">{currentData.category}</p>
+                <p className="text-sm text-slate-900 capitalize">{currentData.category}</p>
               ) : (
                 <select
                   name="category"
@@ -315,11 +314,11 @@ export default function ItemModal({ item, isOpen, mode, onClose, onSave }: ItemM
 
           {/* Description */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-medium text-slate-700 mb-1">
               Description
             </label>
             {isViewMode ? (
-              <p className="text-sm text-gray-900">{currentData.description}</p>
+              <p className="text-sm text-slate-900">{currentData.description}</p>
             ) : (
               <textarea
                 name="description"
@@ -331,15 +330,14 @@ export default function ItemModal({ item, isOpen, mode, onClose, onSave }: ItemM
             )}
           </div>
 
-          {/* Location */}
-          {currentData.location_found && (
+          {/* Location Found */}
+          {(currentData.location_found || !isViewMode) && (
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                <MapPinIcon className="h-4 w-4 inline mr-1" />
-                Location Found
+              <label className="block text-sm font-medium text-slate-700 mb-1">
+                Room / Location Found
               </label>
               {isViewMode ? (
-                <p className="text-sm text-gray-900">{currentData.location_found}</p>
+                <p className="text-sm text-slate-900">{currentData.location_found}</p>
               ) : (
                 <input
                   type="text"
@@ -356,11 +354,11 @@ export default function ItemModal({ item, isOpen, mode, onClose, onSave }: ItemM
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             {(currentData.color || !isViewMode) && (
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-slate-700 mb-1">
                   Color
                 </label>
                 {isViewMode ? (
-                  <p className="text-sm text-gray-900">{currentData.color}</p>
+                  <p className="text-sm text-slate-900">{currentData.color}</p>
                 ) : (
                   <input
                     type="text"
@@ -375,11 +373,11 @@ export default function ItemModal({ item, isOpen, mode, onClose, onSave }: ItemM
 
             {(currentData.brand || !isViewMode) && (
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-slate-700 mb-1">
                   Brand
                 </label>
                 {isViewMode ? (
-                  <p className="text-sm text-gray-900">{currentData.brand}</p>
+                  <p className="text-sm text-slate-900">{currentData.brand}</p>
                 ) : (
                   <input
                     type="text"
@@ -394,11 +392,11 @@ export default function ItemModal({ item, isOpen, mode, onClose, onSave }: ItemM
 
             {(currentData.model || !isViewMode) && (
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-slate-700 mb-1">
                   Model
                 </label>
                 {isViewMode ? (
-                  <p className="text-sm text-gray-900">{currentData.model}</p>
+                  <p className="text-sm text-slate-900">{currentData.model}</p>
                 ) : (
                   <input
                     type="text"
@@ -422,7 +420,7 @@ export default function ItemModal({ item, isOpen, mode, onClose, onSave }: ItemM
                 {currentData.tags.map((tag, index) => (
                   <span
                     key={index}
-                    className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800"
+                    className="inline-flex items-center px-3 py-1.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800"
                   >
                     {tag}
                   </span>
