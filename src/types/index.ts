@@ -122,12 +122,10 @@ export interface Claim {
   updated_at: string;
 }
 
-export type ClaimStatus = 
+export type ClaimStatus =
   | 'pending'
   | 'approved'
-  | 'rejected'
-  | 'collected'
-  | 'expired';
+  | 'rejected';
 
 export type PaymentStatus = 
   | 'pending'

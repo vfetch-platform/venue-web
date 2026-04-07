@@ -33,12 +33,11 @@ export default function ClaimsPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [selectedClaim, setSelectedClaim] = useState<Claim | null>(null);
-  const [collectingClaim, setCollectingClaim] = useState<string | null>(null);
   const [lightboxImage, setLightboxImage] = useState<string | null>(null);
 
   // Confirmation modal state
   const [confirmAction, setConfirmAction] = useState<{
-    type: 'approve' | 'reject' | 'collect';
+    type: 'approve' | 'reject';
     claimId: string;
     itemTitle: string;
   } | null>(null);
@@ -103,8 +102,6 @@ export default function ClaimsPage() {
       case 'pending': return 'bg-yellow-100 text-yellow-800';
       case 'approved': return 'bg-green-100 text-green-800';
       case 'rejected': return 'bg-red-100 text-red-800';
-      case 'collected': return 'bg-blue-100 text-blue-800';
-      case 'expired': return 'bg-slate-100 text-slate-800';
       default: return 'bg-slate-100 text-slate-800';
     }
   };
@@ -119,24 +116,16 @@ export default function ClaimsPage() {
     setConfirmAction({ type: 'reject', claimId, itemTitle });
   };
 
-  const requestCollection = (claimId: string, itemTitle: string) => {
-    setConfirmAction({ type: 'collect', claimId, itemTitle });
-  };
-
   const executeConfirmAction = async () => {
     if (!confirmAction) return;
 
     if (confirmAction.type === 'reject' && !rejectionReason.trim()) return;
 
-    if (confirmAction.type === 'collect') {
-      await handleMarkItemCollected(confirmAction.claimId);
-    } else {
-      await handleUpdateClaimStatus(
-        confirmAction.claimId,
-        confirmAction.type === 'approve' ? 'approved' : 'rejected',
-        confirmAction.type === 'reject' ? rejectionReason.trim() : undefined
-      );
-    }
+    await handleUpdateClaimStatus(
+      confirmAction.claimId,
+      confirmAction.type === 'approve' ? 'approved' : 'rejected',
+      confirmAction.type === 'reject' ? rejectionReason.trim() : undefined
+    );
 
     setConfirmAction(null);
     setRejectionReason('');
@@ -166,31 +155,7 @@ export default function ClaimsPage() {
     }
   };
 
-  const handleMarkItemCollected = async (claimId: string) => {
-    setCollectingClaim(claimId);
-    try {
-      const response = await api.claims.markCollected(claimId, 'collected_code');
-      if (response.success && response.data) {
-        setClaims(prev => prev.map(claim => {
-          if (claim.id !== claimId) return claim;
-          const updated = response.data as Claim;
-          return { ...claim, ...updated, item: updated.item || claim.item, user: updated.user || claim.user } as Claim;
-        }));
-        setSelectedClaim(prev => {
-          if (!prev || prev.id !== claimId) return prev;
-          const updated = response.data as Claim;
-          return { ...prev, ...updated, item: updated.item || prev.item, user: updated.user || prev.user };
-        });
-      }
-    } catch (error) {
-      console.error('Error marking item as collected:', error);
-      alert('Failed to mark item as collected');
-    } finally {
-      setCollectingClaim(null);
-    }
-  };
-
-  const formatDate = (dateString: string) => {
+const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-GB', {
       year: 'numeric',
       month: 'short',
@@ -213,7 +178,6 @@ export default function ClaimsPage() {
     switch (status) {
       case 'pending': return 'text-yellow-600 border-yellow-400';
       case 'approved': return 'text-green-600 border-green-400';
-      case 'collected': return 'text-blue-600 border-blue-400';
       case 'rejected': return 'text-red-600 border-red-400';
       default: return 'text-slate-600 border-slate-300';
     }
@@ -519,12 +483,7 @@ export default function ClaimsPage() {
                       <span>Expires: {formatDate(selectedClaim.expires_at)}</span>
                     </div>
                   )}
-                  {selectedClaim.collected_at && (
-                    <div className="flex items-center gap-2 text-sm text-slate-700">
-                      <CheckIcon className="h-4 w-4 text-green-500 shrink-0" />
-                      <span>Collected: {formatDate(selectedClaim.collected_at)}</span>
-                    </div>
-                  )}
+
                   <div className="flex items-center gap-2 text-sm text-slate-700">
                     <CreditCardIcon className="h-4 w-4 text-slate-400 shrink-0" />
                     <span>Payment: <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-semibold ${
@@ -579,18 +538,6 @@ export default function ClaimsPage() {
                   </button>
                 </div>
               )}
-              {selectedClaim.status === 'approved' && (
-                <div className="mt-6">
-                  <button
-                    onClick={() => requestCollection(selectedClaim.id, selectedClaim.item?.title || 'this item')}
-                    disabled={collectingClaim === selectedClaim.id}
-                    className="w-full inline-flex justify-center items-center px-4 py-2.5 text-sm font-medium rounded-lg text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50 transition-colors"
-                  >
-                    <CheckIcon className="w-4 h-4 mr-1.5" />
-                    {collectingClaim === selectedClaim.id ? 'Processing...' : 'Mark as Collected'}
-                  </button>
-                </div>
-              )}
             </div>
           </div>
         , document.body)}
@@ -610,29 +557,21 @@ export default function ClaimsPage() {
           >
             <div className="flex items-start gap-3 mb-4">
               <div className={`p-2 rounded-full shrink-0 ${
-                confirmAction.type === 'approve' ? 'bg-green-100' :
-                confirmAction.type === 'reject' ? 'bg-red-100' : 'bg-blue-100'
+                confirmAction.type === 'approve' ? 'bg-green-100' : 'bg-red-100'
               }`}>
                 <ExclamationTriangleIcon className={`h-5 w-5 ${
-                  confirmAction.type === 'approve' ? 'text-green-600' :
-                  confirmAction.type === 'reject' ? 'text-red-600' : 'text-blue-600'
+                  confirmAction.type === 'approve' ? 'text-green-600' : 'text-red-600'
                 }`} />
               </div>
               <div>
                 <h4 className="text-base font-semibold text-slate-900">
-                  {confirmAction.type === 'approve' && 'Approve this claim?'}
-                  {confirmAction.type === 'reject' && 'Reject this claim?'}
-                  {confirmAction.type === 'collect' && 'Mark as collected?'}
+                  {confirmAction.type === 'approve' ? 'Approve this claim?' : 'Reject this claim?'}
                 </h4>
                 <p className="text-sm text-slate-500 mt-1">
-                  {confirmAction.type === 'approve' && (
+                  {confirmAction.type === 'approve' ? (
                     <>You are about to approve the claim for <strong>{confirmAction.itemTitle}</strong>. The customer will be notified.</>
-                  )}
-                  {confirmAction.type === 'reject' && (
+                  ) : (
                     <>Please provide a reason for rejecting the claim for <strong>{confirmAction.itemTitle}</strong>.</>
-                  )}
-                  {confirmAction.type === 'collect' && (
-                    <>You are about to mark <strong>{confirmAction.itemTitle}</strong> as collected. This action cannot be undone.</>
                   )}
                 </p>
               </div>
@@ -666,14 +605,10 @@ export default function ClaimsPage() {
                 onClick={executeConfirmAction}
                 disabled={confirmAction.type === 'reject' && !rejectionReason.trim()}
                 className={`px-4 py-2 text-sm font-medium text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
-                  confirmAction.type === 'approve' ? 'bg-green-600 hover:bg-green-700' :
-                  confirmAction.type === 'reject' ? 'bg-red-600 hover:bg-red-700' :
-                  'bg-blue-600 hover:bg-blue-700'
+                  confirmAction.type === 'approve' ? 'bg-green-600 hover:bg-green-700' : 'bg-red-600 hover:bg-red-700'
                 }`}
               >
-                {confirmAction.type === 'approve' && 'Yes, Approve'}
-                {confirmAction.type === 'reject' && 'Reject Claim'}
-                {confirmAction.type === 'collect' && 'Confirm Collection'}
+                {confirmAction.type === 'approve' ? 'Yes, Approve' : 'Reject Claim'}
               </button>
             </div>
           </div>
