@@ -91,8 +91,6 @@ export default function ItemModal({ item, isOpen, mode, onClose, onSave }: ItemM
         return 'bg-green-100 text-green-800';
       case 'claimed':
         return 'bg-yellow-100 text-yellow-800';
-      case 'paid':
-        return 'bg-purple-100 text-purple-800';
       case 'collected':
       case 'collected_courier':
       case 'collected_nocode':
