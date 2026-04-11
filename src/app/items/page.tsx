@@ -7,7 +7,7 @@ import ItemModal from '@/components/ItemModal';
 import { useAuthStore } from '@/store/auth';
 import { Item, ItemStatus } from '@/types';
 import { api } from '@/services/api';
-import { ITEM_CATEGORIES, COLLECTED_STATUSES } from '@/constants/items';
+import { ITEM_CATEGORIES } from '@/constants/items';
 import {
   MagnifyingGlassIcon,
   PlusIcon,
@@ -147,8 +147,7 @@ export default function ItemsPage() {
       item.tags.some(tag => tag.toLowerCase().includes(searchQuery.toLowerCase()));
 
     const matchesCategory = selectedCategory === '' || item.category === selectedCategory;
-    const matchesStatus = selectedStatus === '' || item.status === selectedStatus ||
-      (selectedStatus === 'collected' && COLLECTED_STATUSES.has(item.status));
+    const matchesStatus = selectedStatus === '' || item.status === selectedStatus;
 
     return matchesSearch && matchesCategory && matchesStatus;
   });
@@ -158,10 +157,8 @@ export default function ItemsPage() {
       case 'available':
         return 'bg-green-500 text-white border-green-600';
       case 'reserved':
-      case 'claimed':
         return 'bg-yellow-500 text-white border-yellow-600';
       case 'released':
-      case 'collected':
         return 'bg-blue-500 text-white border-blue-600';
       case 'expired':
         return 'bg-red-500 text-white border-red-600';
@@ -228,8 +225,8 @@ export default function ItemsPage() {
 
   // Stats - count from items list
   const availableCount = items.filter(i => i.status === 'available').length;
-  const claimedCount = items.filter(i => i.status === 'claimed').length;
-  const collectedCount = items.filter(i => COLLECTED_STATUSES.has(i.status)).length;
+  const reservedCount = items.filter(i => i.status === 'reserved').length;
+  const releasedCount = items.filter(i => i.status === 'released').length;
   const expiredCount = items.filter(i => i.status === 'expired').length;
 
   const statusCards: {
@@ -245,14 +242,14 @@ export default function ItemsPage() {
       subtitle: availableCount > 0 ? `${availableCount} items in storage` : 'No items in storage',
     },
     {
-      label: 'Claimed', count: claimedCount, status: 'claimed',
+      label: 'Reserved', count: reservedCount, status: 'reserved',
       icon: CheckCircleIcon, iconColor: 'text-blue-500', iconBg: 'bg-blue-50',
-      subtitle: claimedCount > 0 ? `${claimedCount} pending review` : 'No pending claims',
+      subtitle: reservedCount > 0 ? `${reservedCount} pending collection` : 'No pending claims',
     },
     {
-      label: 'Collected', count: collectedCount, status: 'collected',
+      label: 'Released', count: releasedCount, status: 'released',
       icon: TagIcon, iconColor: 'text-purple-500', iconBg: 'bg-purple-50',
-      subtitle: collectedCount > 0 ? `${collectedCount} returned` : 'All clear for today',
+      subtitle: releasedCount > 0 ? `${releasedCount} returned` : 'All clear for today',
     },
     {
       label: 'Expired', count: expiredCount, status: 'expired',
@@ -263,10 +260,7 @@ export default function ItemsPage() {
     },
   ];
 
-  const formatStatusLabel = (status: string) => {
-    if (status.startsWith('collected_')) return 'COLLECTED';
-    return status.toUpperCase();
-  };
+  const formatStatusLabel = (status: string) => status.toUpperCase();
 
   return (
     <Layout>

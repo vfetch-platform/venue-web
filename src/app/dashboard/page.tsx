@@ -40,8 +40,8 @@ interface CategoryBreakdown {
 interface DashboardData {
   totalItems: number;
   availableItems: number;
-  claimedItems: number;
-  collectedItems: number;
+  reservedItems: number;
+  releasedItems: number;
   expiredItems: number;
   categoryBreakdown: CategoryBreakdown[];
   avgDaysToClaim: number;
@@ -50,11 +50,11 @@ interface DashboardData {
 // ── Helpers ──────────────────────────────────────────────────────────
 function buildDashboardData(items: Item[], claims: Claim[]): DashboardData {
   const totalItems = items.length;
-  let availableItems = 0, claimedItems = 0, collectedItems = 0, expiredItems = 0;
+  let availableItems = 0, reservedItems = 0, releasedItems = 0, expiredItems = 0;
   for (const i of items) {
     if (i.status === 'available') availableItems++;
-    else if (i.status === 'claimed') claimedItems++;
-    else if (COLLECTED_STATUSES.has(i.status)) collectedItems++;
+    else if (i.status === 'reserved') reservedItems++;
+    else if (COLLECTED_STATUSES.has(i.status)) releasedItems++;
     else if (i.status === 'expired') expiredItems++;
   }
 
@@ -87,8 +87,8 @@ function buildDashboardData(items: Item[], claims: Claim[]): DashboardData {
   return {
     totalItems,
     availableItems,
-    claimedItems,
-    collectedItems,
+    reservedItems,
+    releasedItems,
     expiredItems,
     categoryBreakdown,
     avgDaysToClaim,
@@ -244,8 +244,8 @@ const StatCard = ({ title, value, icon: Icon, color }: {
 // ── Status Pie Chart ─────────────────────────────────────────────────
 const STATUS_COLORS: Record<string, string> = {
   Available: '#22c55e',
-  Claimed: '#eab308',
-  Collected: '#3b82f6',
+  Reserved: '#eab308',
+  Released: '#3b82f6',
   Expired: '#ef4444',
 };
 
@@ -271,18 +271,18 @@ const StatusPieChart = ({ items }: { items: Item[] }) => {
     : items;
 
   // Count statuses
-  let available = 0, claimed = 0, collected = 0, expired = 0;
+  let available = 0, reserved = 0, released = 0, expired = 0;
   for (const i of filtered) {
     if (i.status === 'available') available++;
-    else if (i.status === 'claimed') claimed++;
-    else if (COLLECTED_STATUSES.has(i.status)) collected++;
+    else if (i.status === 'reserved') reserved++;
+    else if (COLLECTED_STATUSES.has(i.status)) released++;
     else if (i.status === 'expired') expired++;
   }
 
   const segments = [
     { label: 'Available', value: available },
-    { label: 'Claimed', value: claimed },
-    { label: 'Collected', value: collected },
+    { label: 'Reserved', value: reserved },
+    { label: 'Released', value: released },
     { label: 'Expired', value: expired },
   ].filter(s => s.value > 0);
 
@@ -639,8 +639,8 @@ export default function DashboardPage() {
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
           <StatCard title="Total Items" value={dashboardData.totalItems} icon={ArchiveBoxIcon} color="slate" />
           <StatCard title="Available" value={dashboardData.availableItems} icon={EyeIcon} color="green" />
-          <StatCard title="Claimed" value={dashboardData.claimedItems} icon={HandRaisedIcon} color="yellow" />
-          <StatCard title="Collected" value={dashboardData.collectedItems} icon={ArrowTrendingUpIcon} color="blue" />
+          <StatCard title="Reserved" value={dashboardData.reservedItems} icon={HandRaisedIcon} color="yellow" />
+          <StatCard title="Released" value={dashboardData.releasedItems} icon={ArrowTrendingUpIcon} color="blue" />
           <StatCard title="Expired" value={dashboardData.expiredItems} icon={ClockIcon} color="red" />
         </div>
 
@@ -662,7 +662,7 @@ export default function DashboardPage() {
             <div className={`${cardStyles} p-6 text-center flex-1`}>
               <div className="text-3xl font-bold text-blue-600">
                 {dashboardData.totalItems > 0
-                  ? Math.round((dashboardData.collectedItems / dashboardData.totalItems) * 100)
+                  ? Math.round((dashboardData.releasedItems / dashboardData.totalItems) * 100)
                   : 0}%
               </div>
               <div className="text-sm text-slate-600 mt-1">Collection Rate</div>
@@ -671,11 +671,11 @@ export default function DashboardPage() {
             <div className={`${cardStyles} p-6 text-center flex-1`}>
               <div className="text-3xl font-bold text-yellow-600">
                 {dashboardData.totalItems > 0
-                  ? Math.round((dashboardData.claimedItems / dashboardData.totalItems) * 100)
+                  ? Math.round((dashboardData.reservedItems / dashboardData.totalItems) * 100)
                   : 0}%
               </div>
               <div className="text-sm text-slate-600 mt-1">Claim Rate</div>
-              <div className="text-xs text-slate-400 mt-1">Items with active claims</div>
+              <div className="text-xs text-slate-400 mt-1">Items with active reservations</div>
             </div>
             <div className={`${cardStyles} p-6 text-center flex-1`}>
               <div className="text-3xl font-bold text-slate-700">{dashboardData.avgDaysToClaim || '\u2014'}</div>

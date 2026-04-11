@@ -86,10 +86,7 @@ export type ItemStatus =
   | 'available'
   | 'reserved'
   | 'released'
-  | 'expired'
-  // Deprecated — kept during migration
-  | 'claimed'
-  | 'collected';
+  | 'expired';
 
 export type WorkflowState =
   | 'pending_review'
@@ -108,10 +105,9 @@ export interface Claim {
   item_id: string;
   venue_id?: string;
   claimant_id?: string;
-  user_id: string;
   status: ClaimStatus;
   decision_reason?: string;
-  payment_id?: string;
+  active_transaction_id?: string;
   payment_status: PaymentStatus;
   workflow_state?: WorkflowState;
   collection_mode?: 'self_pickup' | 'courier';
@@ -119,15 +115,6 @@ export interface Claim {
   notes?: string;
   query_id?: string;
   search_description?: string;
-  customer_name?: string;
-  customer_email?: string;
-  customer_phone?: string;
-  room_number?: string;
-  dates_of_stay?: {
-    checkin: string;
-    checkout: string;
-  };
-  booking_reference?: string;
   verification_questions?: Record<string, unknown>;
   verification_answers?: Record<string, unknown>;
   decided_at?: string;
@@ -151,11 +138,7 @@ export type PaymentStatus =
   | 'not_required'
   | 'awaiting_payment'
   | 'paid'
-  | 'refunded'
-  // Deprecated — kept during migration
-  | 'pending'
-  | 'completed'
-  | 'failed';
+  | 'refunded';
 
 // API Response types
 export interface ApiResponse<T> {

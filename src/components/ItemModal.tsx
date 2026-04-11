@@ -89,10 +89,9 @@ export default function ItemModal({ item, isOpen, mode, onClose, onSave }: ItemM
     switch (status) {
       case 'available':
         return 'bg-green-100 text-green-800';
-      case 'claimed':
+      case 'reserved':
         return 'bg-yellow-100 text-yellow-800';
       case 'released':
-      case 'collected':
         return 'bg-blue-100 text-blue-800';
       case 'expired':
         return 'bg-red-100 text-red-800';
@@ -152,7 +151,7 @@ export default function ItemModal({ item, isOpen, mode, onClose, onSave }: ItemM
           )}
 
           {/* Collection Section (Edit mode when reserved/claimed) */}
-          {!isViewMode && (item.status === 'reserved' || item.status === 'claimed') && (
+          {!isViewMode && item.status === 'reserved' && (
             <div className="space-y-2">
               <label className="flex items-center gap-2 text-sm font-medium text-slate-700">
                 <input

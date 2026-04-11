@@ -19,9 +19,6 @@ import {
   KeyIcon,
   ClockIcon,
   CreditCardIcon,
-  BuildingOfficeIcon,
-  CalendarDaysIcon,
-  TicketIcon,
 } from '@heroicons/react/24/outline';
 import { cardStyles } from '@/utils/styles';
 
@@ -292,10 +289,10 @@ const formatDate = (dateString: string) => {
                           <span className={`inline-flex px-2 py-0.5 text-xs font-semibold rounded-full capitalize ${getStatusColor(claim.status)}`}>
                             {claim.status}
                           </span>
-                          {claim.customer_name && (
+                          {claim.user?.first_name && (
                             <span className="text-xs text-slate-500 flex items-center gap-1">
                               <UserIcon className="h-3 w-3" />
-                              {claim.customer_name}
+                              {[claim.user.first_name, claim.user.last_name].filter(Boolean).join(' ')}
                             </span>
                           )}
                         </div>
@@ -415,17 +412,17 @@ const formatDate = (dateString: string) => {
                 {/* Claimant details */}
                 <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg space-y-1.5">
                   <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">Claimant Details</p>
-                  {(selectedClaim.customer_name || selectedClaim.user?.first_name) && (
+                  {selectedClaim.user?.first_name && (
                     <div className="flex items-center gap-2 text-sm text-slate-700">
                       <UserIcon className="h-4 w-4 text-slate-400 shrink-0" />
-                      <span className="font-medium">{selectedClaim.customer_name || [selectedClaim.user?.first_name, selectedClaim.user?.last_name].filter(Boolean).join(' ')}</span>
+                      <span className="font-medium">{[selectedClaim.user.first_name, selectedClaim.user.last_name].filter(Boolean).join(' ')}</span>
                     </div>
                   )}
-                  {(selectedClaim.customer_email || selectedClaim.user?.email) && (
+                  {selectedClaim.user?.email && (
                     <div className="flex items-center gap-2 text-sm text-slate-700">
                       <EnvelopeIcon className="h-4 w-4 text-slate-400 shrink-0" />
-                      <a href={`mailto:${selectedClaim.customer_email || selectedClaim.user?.email}`} className="text-blue-600 hover:underline">
-                        {selectedClaim.customer_email || selectedClaim.user?.email}
+                      <a href={`mailto:${selectedClaim.user.email}`} className="text-blue-600 hover:underline">
+                        {selectedClaim.user.email}
                       </a>
                     </div>
                   )}
@@ -438,35 +435,6 @@ const formatDate = (dateString: string) => {
                     </div>
                   )}
                 </div>
-
-                {/* Stay Details */}
-                {(selectedClaim.room_number || selectedClaim.dates_of_stay || selectedClaim.booking_reference) && (
-                  <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg space-y-1.5">
-                    <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">Stay Details</p>
-                    {selectedClaim.room_number && (
-                      <div className="flex items-center gap-2 text-sm text-slate-700">
-                        <BuildingOfficeIcon className="h-4 w-4 text-slate-400 shrink-0" />
-                        <span>Room / Location: <span className="font-medium text-slate-900">{selectedClaim.room_number}</span></span>
-                      </div>
-                    )}
-                    {selectedClaim.dates_of_stay && (
-                      <div className="flex items-center gap-2 text-sm text-slate-700">
-                        <CalendarDaysIcon className="h-4 w-4 text-slate-400 shrink-0" />
-                        <span>
-                          {new Date(selectedClaim.dates_of_stay.checkin).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
-                          {' — '}
-                          {new Date(selectedClaim.dates_of_stay.checkout).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
-                        </span>
-                      </div>
-                    )}
-                    {selectedClaim.booking_reference && (
-                      <div className="flex items-center gap-2 text-sm text-slate-700">
-                        <TicketIcon className="h-4 w-4 text-slate-400 shrink-0" />
-                        <span>Booking Ref: <span className="font-mono font-medium text-slate-900">{selectedClaim.booking_reference}</span></span>
-                      </div>
-                    )}
-                  </div>
-                )}
 
                 {/* Pickup & Verification */}
                 <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg space-y-1.5">
@@ -487,8 +455,8 @@ const formatDate = (dateString: string) => {
                   <div className="flex items-center gap-2 text-sm text-slate-700">
                     <CreditCardIcon className="h-4 w-4 text-slate-400 shrink-0" />
                     <span>Payment: <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-semibold ${
-                      selectedClaim.payment_status === 'completed' ? 'bg-green-100 text-green-700' :
-                      selectedClaim.payment_status === 'failed' ? 'bg-red-100 text-red-700' :
+                      selectedClaim.payment_status === 'paid' ? 'bg-green-100 text-green-700' :
+                      selectedClaim.payment_status === 'awaiting_payment' ? 'bg-yellow-100 text-yellow-700' :
                       selectedClaim.payment_status === 'refunded' ? 'bg-amber-100 text-amber-700' :
                       'bg-slate-100 text-slate-700'
                     }`}>{selectedClaim.payment_status}</span></span>
