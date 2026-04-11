@@ -23,7 +23,6 @@ export const ITEM_STATUSES: ItemStatus[] = [
 /** Item statuses that represent a collected/released item. */
 export const RELEASED_STATUSES: Set<ItemStatus> = new Set<ItemStatus>([
   'released',
-  'collected', // legacy
 ]);
 
 /** @deprecated Use RELEASED_STATUSES instead. */
@@ -31,7 +30,7 @@ export const COLLECTED_STATUSES = RELEASED_STATUSES;
 
 /** Check if an item status represents a reserved/claimed state. */
 export function isReserved(status: ItemStatus): boolean {
-  return status === 'reserved' || status === 'claimed';
+  return status === 'reserved';
 }
 
 /** Check if an item status represents a released/collected state. */

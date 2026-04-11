@@ -38,10 +38,3 @@ export const WORKFLOW_STATE_LABELS: Record<WorkflowState, string> = {
   rejected: 'Rejected',
 };
 
-/** Map legacy payment status values to new ones for display. */
-export function normalizePaymentStatus(status: PaymentStatus): PaymentStatus {
-  if (status === 'pending') return 'awaiting_payment';
-  if (status === 'completed') return 'paid';
-  if (status === 'failed') return 'not_required'; // failed payments are retried
-  return status;
-}
