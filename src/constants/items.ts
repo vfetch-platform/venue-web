@@ -15,18 +15,29 @@ export const ITEM_CATEGORIES: ItemCategory[] = [
 
 export const ITEM_STATUSES: ItemStatus[] = [
   'available',
-  'claimed',
-  'paid',
-  'collected',
+  'reserved',
+  'released',
   'expired',
 ];
 
-export const COLLECTED_STATUSES: Set<ItemStatus> = new Set<ItemStatus>([
-  'collected',
-  'collected_code',
-  'collected_nocode',
-  'collected_courier',
+/** Item statuses that represent a collected/released item. */
+export const RELEASED_STATUSES: Set<ItemStatus> = new Set<ItemStatus>([
+  'released',
+  'collected', // legacy
 ]);
+
+/** @deprecated Use RELEASED_STATUSES instead. */
+export const COLLECTED_STATUSES = RELEASED_STATUSES;
+
+/** Check if an item status represents a reserved/claimed state. */
+export function isReserved(status: ItemStatus): boolean {
+  return status === 'reserved' || status === 'claimed';
+}
+
+/** Check if an item status represents a released/collected state. */
+export function isReleased(status: ItemStatus): boolean {
+  return RELEASED_STATUSES.has(status);
+}
 
 export const MONTH_NAMES = [
   'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
