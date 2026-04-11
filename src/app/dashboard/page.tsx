@@ -8,7 +8,6 @@ import {
   ArchiveBoxIcon,
   EyeIcon,
   HandRaisedIcon,
-  CurrencyPoundIcon,
   ArrowTrendingUpIcon,
   ClockIcon,
   ArrowDownTrayIcon,
@@ -42,7 +41,6 @@ interface DashboardData {
   totalItems: number;
   availableItems: number;
   claimedItems: number;
-  paidItems: number;
   collectedItems: number;
   expiredItems: number;
   categoryBreakdown: CategoryBreakdown[];
@@ -52,11 +50,10 @@ interface DashboardData {
 // ── Helpers ──────────────────────────────────────────────────────────
 function buildDashboardData(items: Item[], claims: Claim[]): DashboardData {
   const totalItems = items.length;
-  let availableItems = 0, claimedItems = 0, paidItems = 0, collectedItems = 0, expiredItems = 0;
+  let availableItems = 0, claimedItems = 0, collectedItems = 0, expiredItems = 0;
   for (const i of items) {
     if (i.status === 'available') availableItems++;
     else if (i.status === 'claimed') claimedItems++;
-    else if (i.status === 'paid') paidItems++;
     else if (COLLECTED_STATUSES.has(i.status)) collectedItems++;
     else if (i.status === 'expired') expiredItems++;
   }
@@ -91,7 +88,6 @@ function buildDashboardData(items: Item[], claims: Claim[]): DashboardData {
     totalItems,
     availableItems,
     claimedItems,
-    paidItems,
     collectedItems,
     expiredItems,
     categoryBreakdown,
@@ -647,7 +643,6 @@ export default function DashboardPage() {
           <StatCard title="Total Items" value={dashboardData.totalItems} icon={ArchiveBoxIcon} color="slate" />
           <StatCard title="Available" value={dashboardData.availableItems} icon={EyeIcon} color="green" />
           <StatCard title="Claimed" value={dashboardData.claimedItems} icon={HandRaisedIcon} color="yellow" />
-          <StatCard title="Paid" value={dashboardData.paidItems} icon={CurrencyPoundIcon} color="purple" />
           <StatCard title="Collected" value={dashboardData.collectedItems} icon={ArrowTrendingUpIcon} color="blue" />
           <StatCard title="Expired" value={dashboardData.expiredItems} icon={ClockIcon} color="red" />
         </div>

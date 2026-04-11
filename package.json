@@ -11,7 +11,7 @@
     "prepare": "husky"
   },
   "lint-staged": {
-    "**/*.{ts,tsx,js,jsx}": [
+    "!(public)/**/*.{ts,tsx,js,jsx}": [
       "eslint --fix --max-warnings=0"
     ]
   },

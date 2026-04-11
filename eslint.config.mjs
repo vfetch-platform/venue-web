@@ -9,6 +9,9 @@ const __dirname = dirname(__filename);
 const compat = new FlatCompat({ baseDirectory: __dirname });
 
 const config = [
+  {
+    ignores: ["public/sw.js", "public/workbox-*.js"],
+  },
   ...compat.extends("next/core-web-vitals", "next/typescript"),
   {
     files: ["next-env.d.ts"],
