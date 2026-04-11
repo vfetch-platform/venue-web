@@ -157,11 +157,10 @@ export default function ItemsPage() {
     switch (status) {
       case 'available':
         return 'bg-green-500 text-white border-green-600';
+      case 'reserved':
       case 'claimed':
         return 'bg-yellow-500 text-white border-yellow-600';
-      case 'collected_code':
-      case 'collected_nocode':
-      case 'collected_courier':
+      case 'released':
       case 'collected':
         return 'bg-blue-500 text-white border-blue-600';
       case 'expired':
