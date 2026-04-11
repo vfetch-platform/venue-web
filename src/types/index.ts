@@ -84,28 +84,44 @@ export type ItemCategory =
 
 export type ItemStatus =
   | 'available'
+  | 'reserved'
+  | 'released'
+  | 'expired'
+  // Deprecated — kept during migration
   | 'claimed'
-  | 'paid'
-  | 'collected'
-  | 'collected_code'
-  | 'collected_nocode'
-  | 'collected_courier'
-  | 'expired';
+  | 'collected';
+
+export type WorkflowState =
+  | 'pending_review'
+  | 'pending_cancelled'
+  | 'approved_awaiting_payment'
+  | 'approved_ready_for_pickup'
+  | 'approved_courier_arranged'
+  | 'approved_collected'
+  | 'approved_cancelled'
+  | 'approved_expired'
+  | 'rejected';
 
 // Claim types
 export interface Claim {
   id: string;
   item_id: string;
-  customer_name?: string;
-  customer_email?: string;
+  venue_id?: string;
+  claimant_id?: string;
   user_id: string;
   status: ClaimStatus;
+  decision_reason?: string;
   payment_id?: string;
   payment_status: PaymentStatus;
+  workflow_state?: WorkflowState;
+  collection_mode?: 'self_pickup' | 'courier';
   pickup_code: string;
   notes?: string;
   query_id?: string;
   search_description?: string;
+  customer_name?: string;
+  customer_email?: string;
+  customer_phone?: string;
   room_number?: string;
   dates_of_stay?: {
     checkin: string;
@@ -114,7 +130,11 @@ export interface Claim {
   booking_reference?: string;
   verification_questions?: Record<string, unknown>;
   verification_answers?: Record<string, unknown>;
+  decided_at?: string;
+  paid_at?: string;
   collected_at?: string;
+  closed_at?: string;
+  closed_reason?: 'collected' | 'claimant_cancelled' | 'expired';
   expires_at?: string;
   item?: Item;
   user?: User;
@@ -127,11 +147,15 @@ export type ClaimStatus =
   | 'approved'
   | 'rejected';
 
-export type PaymentStatus = 
+export type PaymentStatus =
+  | 'not_required'
+  | 'awaiting_payment'
+  | 'paid'
+  | 'refunded'
+  // Deprecated — kept during migration
   | 'pending'
   | 'completed'
-  | 'failed'
-  | 'refunded';
+  | 'failed';
 
 // API Response types
 export interface ApiResponse<T> {

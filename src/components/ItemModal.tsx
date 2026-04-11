@@ -26,7 +26,7 @@ export default function ItemModal({ item, isOpen, mode, onClose, onSave }: ItemM
   const [editData, setEditData] = useState<Item | null>(item);
   const closeButtonRef = useRef<HTMLButtonElement>(null);
   const [isLoading, setIsLoading] = useState(false);
-  const [collectionStatus, setCollectionStatus] = useState<'collected_code' | 'collected_nocode' | 'collected_courier' | null>(null);
+  const [markReleased, setMarkReleased] = useState(false);
 
   // Close on Escape
   useEffect(() => {
@@ -46,7 +46,7 @@ export default function ItemModal({ item, isOpen, mode, onClose, onSave }: ItemM
   // Reset collection selection whenever a new item is opened or mode switches
   if (editData?.id !== item?.id && item) {
     setEditData(item);
-    setCollectionStatus(COLLECTED_STATUSES.has(item.status) ? (item.status as 'collected_code' | 'collected_nocode' | 'collected_courier') : null);
+    setMarkReleased(COLLECTED_STATUSES.has(item.status));
   }
 
 
@@ -72,8 +72,8 @@ export default function ItemModal({ item, isOpen, mode, onClose, onSave }: ItemM
     if (!editData || !onSave) return;
     setIsLoading(true);
     try {
-      const finalData: Item = collectionStatus
-        ? { ...editData, status: collectionStatus }
+      const finalData: Item = markReleased
+        ? { ...editData, status: 'released' }
         : editData;
       await new Promise(resolve => setTimeout(resolve, 1000));
       onSave(finalData);
@@ -91,12 +91,8 @@ export default function ItemModal({ item, isOpen, mode, onClose, onSave }: ItemM
         return 'bg-green-100 text-green-800';
       case 'claimed':
         return 'bg-yellow-100 text-yellow-800';
-      case 'paid':
-        return 'bg-purple-100 text-purple-800';
+      case 'released':
       case 'collected':
-      case 'collected_courier':
-      case 'collected_nocode':
-      case 'collected_code':
         return 'bg-blue-100 text-blue-800';
       case 'expired':
         return 'bg-red-100 text-red-800';
@@ -155,43 +151,17 @@ export default function ItemModal({ item, isOpen, mode, onClose, onSave }: ItemM
             </div>
           )}
 
-          {/* Collection Section (Edit mode when claimed or already collected) */}
-          {!isViewMode && (item.status === 'claimed' || COLLECTED_STATUSES.has(item.status)) && (
+          {/* Collection Section (Edit mode when reserved/claimed) */}
+          {!isViewMode && (item.status === 'reserved' || item.status === 'claimed') && (
             <div className="space-y-2">
-              <label className="block text-sm font-medium text-slate-700">{COLLECTED_STATUSES.has(item.status) ? 'Update Collection Method' : 'Mark as Collected'}</label>
-              <div className="space-y-2 text-sm">
-                <label className="flex items-center gap-2">
-                  <input
-                    type="radio"
-                    name="collection_status"
-                    value="collected_code"
-                    onChange={() => setCollectionStatus('collected_code')}
-                    checked={collectionStatus === 'collected_code'}
-                  />
-                  <span>Collected with pickup code</span>
-                </label>
-                <label className="flex items-center gap-2">
-                  <input
-                    type="radio"
-                    name="collection_status"
-                    value="collected_nocode"
-                    onChange={() => setCollectionStatus('collected_nocode')}
-                    checked={collectionStatus === 'collected_nocode'}
-                  />
-                  <span>Collected without code</span>
-                </label>
-                <label className="flex items-center gap-2">
-                  <input
-                    type="radio"
-                    name="collection_status"
-                    value="collected_courier"
-                    onChange={() => setCollectionStatus('collected_courier')}
-                    checked={collectionStatus === 'collected_courier'}
-                  />
-                  <span>Collected by courier</span>
-                </label>
-                <p className="text-xs text-slate-500">{COLLECTED_STATUSES.has(item.status) ? 'Change the collection method and save.' : 'Select a collection method then save to update status.'}</p>
-              </div>
+              <label className="flex items-center gap-2 text-sm font-medium text-slate-700">
+                <input
+                  type="checkbox"
+                  checked={markReleased}
+                  onChange={e => setMarkReleased(e.target.checked)}
+                />
+                Mark as released (item collected by owner)
+              </label>
             </div>
           )}
           {/* Images */}

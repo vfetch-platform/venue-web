@@ -21,7 +21,6 @@ import {
   CheckCircleIcon,
   TagIcon,
   ClockIcon,
-  CurrencyPoundIcon,
 } from '@heroicons/react/24/outline';
 import { Dialog, DialogBackdrop, DialogPanel, DialogTitle } from '@headlessui/react';
 import Link from 'next/link';
@@ -158,13 +157,10 @@ export default function ItemsPage() {
     switch (status) {
       case 'available':
         return 'bg-green-500 text-white border-green-600';
+      case 'reserved':
       case 'claimed':
         return 'bg-yellow-500 text-white border-yellow-600';
-      case 'paid':
-        return 'bg-purple-500 text-white border-purple-600';
-      case 'collected_code':
-      case 'collected_nocode':
-      case 'collected_courier':
+      case 'released':
       case 'collected':
         return 'bg-blue-500 text-white border-blue-600';
       case 'expired':
@@ -233,7 +229,6 @@ export default function ItemsPage() {
   // Stats - count from items list
   const availableCount = items.filter(i => i.status === 'available').length;
   const claimedCount = items.filter(i => i.status === 'claimed').length;
-  const paidCount = items.filter(i => i.status === 'paid').length;
   const collectedCount = items.filter(i => COLLECTED_STATUSES.has(i.status)).length;
   const expiredCount = items.filter(i => i.status === 'expired').length;
 
@@ -253,11 +248,6 @@ export default function ItemsPage() {
       label: 'Claimed', count: claimedCount, status: 'claimed',
       icon: CheckCircleIcon, iconColor: 'text-blue-500', iconBg: 'bg-blue-50',
       subtitle: claimedCount > 0 ? `${claimedCount} pending review` : 'No pending claims',
-    },
-    {
-      label: 'Paid', count: paidCount, status: 'paid',
-      icon: CurrencyPoundIcon, iconColor: 'text-purple-500', iconBg: 'bg-purple-50',
-      subtitle: paidCount > 0 ? `${paidCount} awaiting collection` : 'No paid claims',
     },
     {
       label: 'Collected', count: collectedCount, status: 'collected',

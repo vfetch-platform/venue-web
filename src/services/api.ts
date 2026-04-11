@@ -319,10 +319,13 @@ export const api = {
       });
     },
 
-    markCollected: async (id: string, method?: string) => {
+    markCollected: async (id: string, method?: string, pickupCode?: string) => {
       return apiRequest<ApiResponse<Claim>>(`/claims/${id}/collect`, {
         method: 'POST',
-        body: JSON.stringify({ collection_method: method }),
+        body: JSON.stringify({
+          collection_method: method,
+          ...(pickupCode ? { pickupCode } : {}),
+        }),
       });
     },
 

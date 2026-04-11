@@ -8,7 +8,6 @@ import {
   ArchiveBoxIcon,
   EyeIcon,
   HandRaisedIcon,
-  CurrencyPoundIcon,
   ArrowTrendingUpIcon,
   ClockIcon,
   ArrowDownTrayIcon,
@@ -42,7 +41,6 @@ interface DashboardData {
   totalItems: number;
   availableItems: number;
   claimedItems: number;
-  paidItems: number;
   collectedItems: number;
   expiredItems: number;
   categoryBreakdown: CategoryBreakdown[];
@@ -52,11 +50,10 @@ interface DashboardData {
 // ── Helpers ──────────────────────────────────────────────────────────
 function buildDashboardData(items: Item[], claims: Claim[]): DashboardData {
   const totalItems = items.length;
-  let availableItems = 0, claimedItems = 0, paidItems = 0, collectedItems = 0, expiredItems = 0;
+  let availableItems = 0, claimedItems = 0, collectedItems = 0, expiredItems = 0;
   for (const i of items) {
     if (i.status === 'available') availableItems++;
     else if (i.status === 'claimed') claimedItems++;
-    else if (i.status === 'paid') paidItems++;
     else if (COLLECTED_STATUSES.has(i.status)) collectedItems++;
     else if (i.status === 'expired') expiredItems++;
   }
@@ -91,7 +88,6 @@ function buildDashboardData(items: Item[], claims: Claim[]): DashboardData {
     totalItems,
     availableItems,
     claimedItems,
-    paidItems,
     collectedItems,
     expiredItems,
     categoryBreakdown,
@@ -249,7 +245,6 @@ const StatCard = ({ title, value, icon: Icon, color }: {
 const STATUS_COLORS: Record<string, string> = {
   Available: '#22c55e',
   Claimed: '#eab308',
-  Paid: '#a855f7',
   Collected: '#3b82f6',
   Expired: '#ef4444',
 };
@@ -276,11 +271,10 @@ const StatusPieChart = ({ items }: { items: Item[] }) => {
     : items;
 
   // Count statuses
-  let available = 0, claimed = 0, paid = 0, collected = 0, expired = 0;
+  let available = 0, claimed = 0, collected = 0, expired = 0;
   for (const i of filtered) {
     if (i.status === 'available') available++;
     else if (i.status === 'claimed') claimed++;
-    else if (i.status === 'paid') paid++;
     else if (COLLECTED_STATUSES.has(i.status)) collected++;
     else if (i.status === 'expired') expired++;
   }
@@ -288,7 +282,6 @@ const StatusPieChart = ({ items }: { items: Item[] }) => {
   const segments = [
     { label: 'Available', value: available },
     { label: 'Claimed', value: claimed },
-    { label: 'Paid', value: paid },
     { label: 'Collected', value: collected },
     { label: 'Expired', value: expired },
   ].filter(s => s.value > 0);
@@ -647,7 +640,6 @@ export default function DashboardPage() {
           <StatCard title="Total Items" value={dashboardData.totalItems} icon={ArchiveBoxIcon} color="slate" />
           <StatCard title="Available" value={dashboardData.availableItems} icon={EyeIcon} color="green" />
           <StatCard title="Claimed" value={dashboardData.claimedItems} icon={HandRaisedIcon} color="yellow" />
-          <StatCard title="Paid" value={dashboardData.paidItems} icon={CurrencyPoundIcon} color="purple" />
           <StatCard title="Collected" value={dashboardData.collectedItems} icon={ArrowTrendingUpIcon} color="blue" />
           <StatCard title="Expired" value={dashboardData.expiredItems} icon={ClockIcon} color="red" />
         </div>
