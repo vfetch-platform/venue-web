@@ -31,6 +31,13 @@ interface AuditEntry {
   created_at: string;
 }
 
+interface MonthlyTrend {
+  month: string;
+  found: number;
+  reserved: number;
+  collected: number;
+}
+
 interface CategoryBreakdown {
   category: string;
   count: number;
