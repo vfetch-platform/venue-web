@@ -305,10 +305,10 @@ export default function ClaimsPage() {
                           <span className={`inline-flex px-2 py-0.5 text-xs font-semibold rounded-full capitalize ${getStatusColor(claim.status)}`}>
                             {claim.status}
                           </span>
-                          {claim.user?.first_name && (
+                          {claim.claimant?.full_name && (
                             <span className="text-xs text-slate-500 flex items-center gap-1">
                               <UserIcon className="h-3 w-3" />
-                              {[claim.user.first_name, claim.user.last_name].filter(Boolean).join(' ')}
+                              {claim.claimant.full_name}
                             </span>
                           )}
                         </div>
@@ -428,25 +428,25 @@ export default function ClaimsPage() {
                 {/* Claimant details */}
                 <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg space-y-1.5">
                   <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">Claimant Details</p>
-                  {selectedClaim.user?.first_name && (
+                  {selectedClaim.claimant?.full_name && (
                     <div className="flex items-center gap-2 text-sm text-slate-700">
                       <UserIcon className="h-4 w-4 text-slate-400 shrink-0" />
-                      <span className="font-medium">{[selectedClaim.user.first_name, selectedClaim.user.last_name].filter(Boolean).join(' ')}</span>
+                      <span className="font-medium">{selectedClaim.claimant.full_name}</span>
                     </div>
                   )}
-                  {selectedClaim.user?.email && (
+                  {selectedClaim.claimant?.email && (
                     <div className="flex items-center gap-2 text-sm text-slate-700">
                       <EnvelopeIcon className="h-4 w-4 text-slate-400 shrink-0" />
-                      <a href={`mailto:${selectedClaim.user.email}`} className="text-blue-600 hover:underline">
-                        {selectedClaim.user.email}
+                      <a href={`mailto:${selectedClaim.claimant.email}`} className="text-blue-600 hover:underline">
+                        {selectedClaim.claimant.email}
                       </a>
                     </div>
                   )}
-                  {selectedClaim.user?.phone_number && (
+                  {selectedClaim.claimant?.phone && (
                     <div className="flex items-center gap-2 text-sm text-slate-700">
                       <PhoneIcon className="h-4 w-4 text-slate-400 shrink-0" />
-                      <a href={`tel:${selectedClaim.user.phone_number}`} className="text-blue-600 hover:underline">
-                        {selectedClaim.user.phone_number}
+                      <a href={`tel:${selectedClaim.claimant.phone}`} className="text-blue-600 hover:underline">
+                        {selectedClaim.claimant.phone}
                       </a>
                     </div>
                   )}
