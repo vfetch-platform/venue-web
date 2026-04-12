@@ -96,10 +96,16 @@ export default function ClaimsPage() {
 
   const getStatusColor = (status: ClaimStatus) => {
     switch (status) {
-      case 'pending': return 'bg-yellow-100 text-yellow-800';
-      case 'approved': return 'bg-green-100 text-green-800';
-      case 'rejected': return 'bg-red-100 text-red-800';
-      default: return 'bg-slate-100 text-slate-800';
+      case 'pending':
+        return 'bg-yellow-100 text-yellow-800';
+      case 'approved':
+        return 'bg-green-100 text-green-800';
+      case 'rejected':
+        return 'bg-red-100 text-red-800';
+      case 'expired':
+        return 'bg-gray-100 text-gray-800';
+      default:
+        return 'bg-gray-100 text-gray-800';
     }
   };
 
@@ -136,12 +142,22 @@ export default function ClaimsPage() {
         setClaims(prev => prev.map(claim => {
           if (claim.id !== claimId) return claim;
           const updated = response.data as Claim;
-          return { ...claim, ...updated, item: updated.item || claim.item, user: updated.user || claim.user } as Claim;
+          return {
+            ...claim,
+            ...updated,
+            item: updated.item || claim.item,
+            claimant: updated.claimant || claim.claimant,
+          } as Claim;
         }));
         setSelectedClaim(prev => {
           if (!prev || prev.id !== claimId) return prev;
           const updated = response.data as Claim;
-          return { ...prev, ...updated, item: updated.item || prev.item, user: updated.user || prev.user };
+          return {
+            ...prev,
+            ...updated,
+            item: updated.item || prev.item,
+            claimant: updated.claimant || prev.claimant,
+          };
         });
       }
     } catch (error) {
@@ -152,7 +168,7 @@ export default function ClaimsPage() {
     }
   };
 
-const formatDate = (dateString: string) => {
+  const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-GB', {
       year: 'numeric',
       month: 'short',
@@ -173,10 +189,10 @@ const formatDate = (dateString: string) => {
 
   const getCardAccent = (status: ClaimStatus) => {
     switch (status) {
-      case 'pending': return 'text-yellow-600 border-yellow-400';
-      case 'approved': return 'text-green-600 border-green-400';
-      case 'rejected': return 'text-red-600 border-red-400';
-      default: return 'text-slate-600 border-slate-300';
+      case 'pending': return 'text-yellow-600 border-yellow-200';
+      case 'approved': return 'text-green-600 border-green-200';
+      case 'rejected': return 'text-red-600 border-red-200';
+      default: return 'text-gray-600 border-gray-200';
     }
   };
 

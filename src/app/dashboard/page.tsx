@@ -31,6 +31,13 @@ interface AuditEntry {
   created_at: string;
 }
 
+interface MonthlyTrend {
+  month: string;
+  found: number;
+  reserved: number;
+  collected: number;
+}
+
 interface CategoryBreakdown {
   category: string;
   count: number;
@@ -58,6 +65,7 @@ function buildDashboardData(items: Item[], claims: Claim[]): DashboardData {
     else if (i.status === 'expired') expiredItems++;
   }
 
+
   // ── Category breakdown ──────────────────────────────────────────────
   const catMap: Record<string, number> = {};
   items.forEach(i => {
@@ -71,6 +79,7 @@ function buildDashboardData(items: Item[], claims: Claim[]): DashboardData {
       count,
       percentage: totalItems > 0 ? Math.round((count / totalItems) * 100) : 0,
     }));
+
 
   // ── Avg days to claim ───────────────────────────────────────────────
   let avgDaysToClaim = 0;
@@ -450,6 +459,7 @@ const RecentActivitySection = ({
     }
     return list;
   }, [entries, itemMap, staffMap, dateFilter]);
+
 
   return (
     <div className={`${cardStyles} p-6`}>
