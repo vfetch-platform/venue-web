@@ -88,30 +88,34 @@ export type ItemStatus =
   | 'released'
   | 'expired';
 
-export type WorkflowState =
-  | 'pending_review'
-  | 'pending_cancelled'
-  | 'approved_awaiting_payment'
-  | 'approved_ready_for_pickup'
-  | 'approved_courier_arranged'
-  | 'approved_collected'
-  | 'approved_cancelled'
-  | 'approved_expired'
-  | 'rejected';
-
 // Claim types
+export interface DeliveryTrackingInfo {
+  provider_reference: string;
+  tracking_url?: string;
+  provider_status?: string;
+}
+
+export interface ClaimantSummary {
+  id: string;
+  full_name: string;
+  email: string;
+  phone?: string;
+}
+
 export interface Claim {
   id: string;
   item_id: string;
-  venue_id?: string;
+  venue_id: string;
   claimant_id?: string;
+  claimant?: ClaimantSummary;
   status: ClaimStatus;
-  decision_reason?: string;
-  active_transaction_id?: string;
   payment_status: PaymentStatus;
-  workflow_state?: WorkflowState;
-  collection_mode?: 'self_pickup' | 'courier';
+  active_transaction_id?: string;
   pickup_code: string;
+  collection_mode?: 'self_pickup' | 'courier';
+  courier_provider?: string;
+  delivery_address?: string;
+  delivery_tracking_info?: DeliveryTrackingInfo;
   notes?: string;
   query_id?: string;
   search_description?: string;
@@ -121,10 +125,9 @@ export interface Claim {
   paid_at?: string;
   collected_at?: string;
   closed_at?: string;
-  closed_reason?: 'collected' | 'claimant_cancelled' | 'expired';
+  closed_reason?: 'claimant_cancelled' | 'expired';
   expires_at?: string;
   item?: Item;
-  user?: User;
   created_at: string;
   updated_at: string;
 }
@@ -132,7 +135,8 @@ export interface Claim {
 export type ClaimStatus =
   | 'pending'
   | 'approved'
-  | 'rejected';
+  | 'rejected'
+  | 'expired';
 
 export type PaymentStatus =
   | 'not_required'
