@@ -96,10 +96,8 @@ export interface DeliveryTrackingInfo {
 }
 
 export interface ClaimantSummary {
-  id: string;
   full_name: string;
   email: string;
-  phone?: string;
 }
 
 export interface Claim {

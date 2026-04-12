@@ -15,10 +15,10 @@ import {
   ExclamationTriangleIcon,
   UserIcon,
   EnvelopeIcon,
-  PhoneIcon,
   KeyIcon,
   ClockIcon,
   CreditCardIcon,
+  CheckBadgeIcon,
 } from '@heroicons/react/24/outline';
 import { cardStyles } from '@/utils/styles';
 
@@ -31,6 +31,7 @@ export default function ClaimsPage() {
   const [error, setError] = useState<string | null>(null);
   const [selectedClaim, setSelectedClaim] = useState<Claim | null>(null);
   const [lightboxImage, setLightboxImage] = useState<string | null>(null);
+  const [collectingClaimId, setCollectingClaimId] = useState<string | null>(null);
 
   // Confirmation modal state
   const [confirmAction, setConfirmAction] = useState<{
@@ -45,11 +46,11 @@ export default function ClaimsPage() {
   const claimsPerPage = 10;
 
   useEffect(() => {
-    if (venue) {
+    if (venue?.id) {
       void loadClaims();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [venue]);
+  }, [venue?.id]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -165,6 +166,26 @@ export default function ClaimsPage() {
       alert(`Failed to ${status} claim`);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleMarkCollected = async (claimId: string) => {
+    setCollectingClaimId(claimId);
+    try {
+      const response = await api.claims.markCollected(claimId);
+      if (response.success && response.data) {
+        const updated = response.data as Claim;
+        setClaims(prev => prev.map(c =>
+          c.id === claimId ? { ...c, ...updated, item: updated.item || c.item, claimant: updated.claimant || c.claimant } : c
+        ));
+        setSelectedClaim(prev =>
+          prev?.id === claimId ? { ...prev, ...updated, item: updated.item || prev.item, claimant: updated.claimant || prev.claimant } : prev
+        );
+      }
+    } catch {
+      alert('Failed to mark claim as collected');
+    } finally {
+      setCollectingClaimId(null);
     }
   };
 
@@ -315,13 +336,25 @@ export default function ClaimsPage() {
                         <div className="text-xs text-slate-500">{formatDate(claim.created_at)}</div>
                       </div>
 
-                      {/* Action */}
-                      <button
-                        onClick={() => setSelectedClaim(claim)}
-                        className="shrink-0 inline-flex items-center px-3 sm:px-4 py-2 text-xs sm:text-sm font-medium rounded-lg text-white bg-slate-900 hover:bg-slate-800 transition-colors"
-                      >
-                        Review
-                      </button>
+                      {/* Actions */}
+                      <div className="shrink-0 flex flex-col gap-2">
+                        <button
+                          onClick={() => setSelectedClaim(claim)}
+                          className="inline-flex items-center px-3 sm:px-4 py-2 text-xs sm:text-sm font-medium rounded-lg text-white bg-slate-900 hover:bg-slate-800 transition-colors"
+                        >
+                          View Details
+                        </button>
+                        {claim.status === 'approved' && !claim.closed_at && claim.item?.status !== 'released' && (
+                          <button
+                            onClick={() => handleMarkCollected(claim.id)}
+                            disabled={collectingClaimId === claim.id}
+                            className="inline-flex items-center justify-center gap-1 px-3 sm:px-4 py-2 text-xs sm:text-sm font-medium rounded-lg text-indigo-700 bg-indigo-50 hover:bg-indigo-100 disabled:opacity-50 transition-colors"
+                          >
+                            <CheckBadgeIcon className="h-4 w-4" />
+                            {collectingClaimId === claim.id ? 'Marking…' : 'Mark as Released'}
+                          </button>
+                        )}
+                      </div>
                     </div>
                   );
                 })}
@@ -383,10 +416,11 @@ export default function ClaimsPage() {
               role="dialog"
               aria-modal="true"
               aria-labelledby="claim-modal-title"
-              className="relative mx-auto p-5 border w-full max-w-lg shadow-lg rounded-xl bg-white max-h-[90vh] overflow-y-auto"
+              className="relative mx-auto border w-full max-w-lg shadow-lg rounded-xl bg-white max-h-[90vh] flex flex-col"
               onClick={(e) => e.stopPropagation()}
             >
-              <div className="flex justify-between items-center mb-4">
+              {/* Fixed header */}
+              <div className="flex justify-between items-center px-5 pt-5 pb-4 shrink-0">
                 <h3 id="claim-modal-title" className="text-lg font-semibold text-slate-900">Claim Details</h3>
                 <button
                   onClick={() => setSelectedClaim(null)}
@@ -396,6 +430,9 @@ export default function ClaimsPage() {
                   <XMarkIcon className="h-5 w-5" />
                 </button>
               </div>
+
+              {/* Scrollable body */}
+              <div className="overflow-y-auto px-5 pb-2 flex-1">
 
               {/* Item Images */}
               {selectedClaim.item?.images && selectedClaim.item.images.length > 0 ? (
@@ -416,110 +453,130 @@ export default function ClaimsPage() {
                 </div>
               )}
 
-              <div className="space-y-4 text-sm">
-                {/* Item name + status */}
-                <div className="flex items-center justify-between gap-2">
-                  <span className="font-semibold text-slate-900 text-base">{selectedClaim.item?.title}</span>
-                  <span className={`shrink-0 inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(selectedClaim.status)}`}>
-                    {selectedClaim.status}
-                  </span>
+                <div className="space-y-4 text-sm">
+                  {/* Item name + status */}
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="font-semibold text-slate-900 text-base">{selectedClaim.item?.title}</span>
+                    <span className={`shrink-0 inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(selectedClaim.status)}`}>
+                      {selectedClaim.status}
+                    </span>
+                  </div>
+
+                  {/* Claimant details */}
+                  <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg space-y-1.5">
+                    <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">Claimant Details</p>
+                    {!selectedClaim.claimant ? (
+                      <div className="flex items-center gap-2 text-sm text-slate-400 italic">
+                        <UserIcon className="h-4 w-4 shrink-0" />
+                        <span>Claimant information not available</span>
+                      </div>
+                    ) : (
+                      <>
+                        {selectedClaim.claimant.full_name && (
+                          <div className="flex items-center gap-2 text-sm text-slate-700">
+                            <UserIcon className="h-4 w-4 text-slate-400 shrink-0" />
+                            <span className="font-medium">{selectedClaim.claimant.full_name}</span>
+                          </div>
+                        )}
+                        {selectedClaim.claimant.email && (
+                          <div className="flex items-center gap-2 text-sm text-slate-700">
+                            <EnvelopeIcon className="h-4 w-4 text-slate-400 shrink-0" />
+                            <a href={`mailto:${selectedClaim.claimant.email}`} className="text-blue-600 hover:underline">
+                              {selectedClaim.claimant.email}
+                            </a>
+                          </div>
+                        )}
+                        {!selectedClaim.claimant.full_name && !selectedClaim.claimant.email && (
+                          <div className="flex items-center gap-2 text-sm text-slate-400 italic">
+                            <UserIcon className="h-4 w-4 shrink-0" />
+                            <span>No claimant details provided</span>
+                          </div>
+                        )}
+                      </>
+                    )}
+                  </div>
+
+                  {/* Pickup & Verification */}
+                  <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg space-y-1.5">
+                    <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">Pickup & Verification</p>
+                    {selectedClaim.pickup_code && (
+                      <div className="flex items-center gap-2 text-sm text-slate-700">
+                        <KeyIcon className="h-4 w-4 text-slate-400 shrink-0" />
+                        <span>Pickup Code: <span className="font-mono font-bold text-slate-900 bg-slate-200 px-1.5 py-0.5 rounded">{selectedClaim.pickup_code}</span></span>
+                      </div>
+                    )}
+                    {selectedClaim.expires_at && (
+                      <div className="flex items-center gap-2 text-sm text-slate-700">
+                        <ClockIcon className="h-4 w-4 text-slate-400 shrink-0" />
+                        <span>Expires: {formatDate(selectedClaim.expires_at)}</span>
+                      </div>
+                    )}
+                    <div className="flex items-center gap-2 text-sm text-slate-700">
+                      <CreditCardIcon className="h-4 w-4 text-slate-400 shrink-0" />
+                      <span>Payment: <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-semibold ${
+                        selectedClaim.payment_status === 'paid' ? 'bg-green-100 text-green-700' :
+                        selectedClaim.payment_status === 'awaiting_payment' ? 'bg-yellow-100 text-yellow-700' :
+                        selectedClaim.payment_status === 'refunded' ? 'bg-amber-100 text-amber-700' :
+                        'bg-slate-100 text-slate-700'
+                      }`}>{selectedClaim.payment_status}</span></span>
+                    </div>
+                  </div>
+
+                  {/* Item description */}
+                  {selectedClaim.item?.description && (
+                    <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg">
+                      <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">Item Description</p>
+                      <p className="text-sm text-slate-700 leading-relaxed">{selectedClaim.item.description}</p>
+                    </div>
+                  )}
+
+                  {/* Customer's description */}
+                  {selectedClaim.search_description && (
+                    <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                      <p className="text-xs font-semibold text-amber-700 uppercase tracking-wide mb-1">Customer&apos;s Description</p>
+                      <p className="text-sm text-amber-900 leading-relaxed">{selectedClaim.search_description}</p>
+                    </div>
+                  )}
+                  {selectedClaim.notes && !selectedClaim.search_description && (
+                    <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                      <p className="text-xs font-semibold text-amber-700 uppercase tracking-wide mb-1">Notes</p>
+                      <p className="text-sm text-amber-900 leading-relaxed italic">&quot;{selectedClaim.notes}&quot;</p>
+                    </div>
+                  )}
                 </div>
-
-                {/* Claimant details */}
-                <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg space-y-1.5">
-                  <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">Claimant Details</p>
-                  {selectedClaim.claimant?.full_name && (
-                    <div className="flex items-center gap-2 text-sm text-slate-700">
-                      <UserIcon className="h-4 w-4 text-slate-400 shrink-0" />
-                      <span className="font-medium">{selectedClaim.claimant.full_name}</span>
-                    </div>
-                  )}
-                  {selectedClaim.claimant?.email && (
-                    <div className="flex items-center gap-2 text-sm text-slate-700">
-                      <EnvelopeIcon className="h-4 w-4 text-slate-400 shrink-0" />
-                      <a href={`mailto:${selectedClaim.claimant.email}`} className="text-blue-600 hover:underline">
-                        {selectedClaim.claimant.email}
-                      </a>
-                    </div>
-                  )}
-                  {selectedClaim.claimant?.phone && (
-                    <div className="flex items-center gap-2 text-sm text-slate-700">
-                      <PhoneIcon className="h-4 w-4 text-slate-400 shrink-0" />
-                      <a href={`tel:${selectedClaim.claimant.phone}`} className="text-blue-600 hover:underline">
-                        {selectedClaim.claimant.phone}
-                      </a>
-                    </div>
-                  )}
-                </div>
-
-                {/* Pickup & Verification */}
-                <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg space-y-1.5">
-                  <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">Pickup & Verification</p>
-                  {selectedClaim.pickup_code && (
-                    <div className="flex items-center gap-2 text-sm text-slate-700">
-                      <KeyIcon className="h-4 w-4 text-slate-400 shrink-0" />
-                      <span>Pickup Code: <span className="font-mono font-bold text-slate-900 bg-slate-200 px-1.5 py-0.5 rounded">{selectedClaim.pickup_code}</span></span>
-                    </div>
-                  )}
-                  {selectedClaim.expires_at && (
-                    <div className="flex items-center gap-2 text-sm text-slate-700">
-                      <ClockIcon className="h-4 w-4 text-slate-400 shrink-0" />
-                      <span>Expires: {formatDate(selectedClaim.expires_at)}</span>
-                    </div>
-                  )}
-
-                  <div className="flex items-center gap-2 text-sm text-slate-700">
-                    <CreditCardIcon className="h-4 w-4 text-slate-400 shrink-0" />
-                    <span>Payment: <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-semibold ${
-                      selectedClaim.payment_status === 'paid' ? 'bg-green-100 text-green-700' :
-                      selectedClaim.payment_status === 'awaiting_payment' ? 'bg-yellow-100 text-yellow-700' :
-                      selectedClaim.payment_status === 'refunded' ? 'bg-amber-100 text-amber-700' :
-                      'bg-slate-100 text-slate-700'
-                    }`}>{selectedClaim.payment_status}</span></span>
-                  </div>
-                </div>
-
-                {/* Item description */}
-                {selectedClaim.item?.description && (
-                  <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg">
-                    <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">Item Description</p>
-                    <p className="text-sm text-slate-700 leading-relaxed">{selectedClaim.item.description}</p>
-                  </div>
-                )}
-
-                {/* Customer's description */}
-                {selectedClaim.search_description && (
-                  <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg">
-                    <p className="text-xs font-semibold text-amber-700 uppercase tracking-wide mb-1">Customer&apos;s Description</p>
-                    <p className="text-sm text-amber-900 leading-relaxed">{selectedClaim.search_description}</p>
-                  </div>
-                )}
-                {selectedClaim.notes && !selectedClaim.search_description && (
-                  <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg">
-                    <p className="text-xs font-semibold text-amber-700 uppercase tracking-wide mb-1">Notes</p>
-                    <p className="text-sm text-amber-900 leading-relaxed italic">&quot;{selectedClaim.notes}&quot;</p>
-                  </div>
-                )}
-
               </div>
 
-              {/* Modal Actions */}
-              {selectedClaim.status === 'pending' && (
-                <div className="mt-6 flex gap-3">
-                  <button
-                    onClick={() => requestApproval(selectedClaim.id, selectedClaim.item?.title || 'this item')}
-                    disabled={isLoading}
-                    className="flex-1 inline-flex justify-center items-center px-4 py-2.5 text-sm font-medium rounded-lg text-white bg-green-600 hover:bg-green-700 disabled:opacity-50 transition-colors"
-                  >
-                    <CheckIcon className="w-4 h-4 mr-1.5" /> Approve
-                  </button>
-                  <button
-                    onClick={() => requestRejection(selectedClaim.id, selectedClaim.item?.title || 'this item')}
-                    disabled={isLoading}
-                    className="flex-1 inline-flex justify-center items-center px-4 py-2.5 text-sm font-medium rounded-lg text-white bg-red-600 hover:bg-red-700 disabled:opacity-50 transition-colors"
-                  >
-                    <XMarkIcon className="w-4 h-4 mr-1.5" /> Reject
-                  </button>
+              {/* Sticky footer actions */}
+              {(selectedClaim.status === 'pending' || (selectedClaim.status === 'approved' && !selectedClaim.closed_at && selectedClaim.item?.status !== 'released')) && (
+                <div className="px-5 py-4 border-t border-slate-100 shrink-0">
+                  {selectedClaim.status === 'pending' && (
+                    <div className="flex gap-3">
+                      <button
+                        onClick={() => requestApproval(selectedClaim.id, selectedClaim.item?.title || 'this item')}
+                        disabled={isLoading}
+                        className="flex-1 inline-flex justify-center items-center px-4 py-2.5 text-sm font-medium rounded-lg text-white bg-green-600 hover:bg-green-700 disabled:opacity-50 transition-colors"
+                      >
+                        <CheckIcon className="w-4 h-4 mr-1.5" /> Approve
+                      </button>
+                      <button
+                        onClick={() => requestRejection(selectedClaim.id, selectedClaim.item?.title || 'this item')}
+                        disabled={isLoading}
+                        className="flex-1 inline-flex justify-center items-center px-4 py-2.5 text-sm font-medium rounded-lg text-white bg-red-600 hover:bg-red-700 disabled:opacity-50 transition-colors"
+                      >
+                        <XMarkIcon className="w-4 h-4 mr-1.5" /> Reject
+                      </button>
+                    </div>
+                  )}
+                  {selectedClaim.status === 'approved' && !selectedClaim.closed_at && selectedClaim.item?.status !== 'released' && (
+                    <button
+                      onClick={() => handleMarkCollected(selectedClaim.id)}
+                      disabled={collectingClaimId === selectedClaim.id}
+                      className="w-full inline-flex justify-center items-center gap-2 px-4 py-2.5 text-sm font-medium rounded-lg text-white bg-green-600 hover:bg-green-700 disabled:opacity-50 transition-colors"
+                    >
+                      <CheckBadgeIcon className="w-4 h-4" />
+                      {collectingClaimId === selectedClaim.id ? 'Marking…' : 'Mark as Released'}
+                    </button>
+                  )}
                 </div>
               )}
             </div>

@@ -5,7 +5,7 @@ import Image from 'next/image';
 import Layout from '@/components/Layout';
 import ItemModal from '@/components/ItemModal';
 import { useAuthStore } from '@/store/auth';
-import { Item, ItemStatus } from '@/types';
+import { Item, ItemStatus, Claim } from '@/types';
 import { api } from '@/services/api';
 import { ITEM_CATEGORIES } from '@/constants/items';
 import {
@@ -21,6 +21,10 @@ import {
   CheckCircleIcon,
   TagIcon,
   ClockIcon,
+  UserIcon,
+  EnvelopeIcon,
+  KeyIcon,
+  CheckBadgeIcon,
 } from '@heroicons/react/24/outline';
 import { Dialog, DialogBackdrop, DialogPanel, DialogTitle } from '@headlessui/react';
 import Link from 'next/link';
@@ -75,6 +79,13 @@ export default function ItemsPage() {
   const [editingItem, setEditingItem] = useState<Item | null>(null);
   const [modalMode, setModalMode] = useState<'view' | 'edit'>('view');
   const [isLoading, setIsLoading] = useState(false);
+
+  // Item-claims drawer
+  const [claimsDrawerItem, setClaimsDrawerItem] = useState<Item | null>(null);
+  const [drawerClaims, setDrawerClaims] = useState<Claim[]>([]);
+  const [drawerLoading, setDrawerLoading] = useState(false);
+  const [collectingClaimId, setCollectingClaimId] = useState<string | null>(null);
+  const [releaseModal, setReleaseModal] = useState<{ claimId: string; reason: string } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [deleteModal, setDeleteModal] = useState<{ itemId: string; reason: string } | null>(null);
 
@@ -159,7 +170,7 @@ export default function ItemsPage() {
       case 'reserved':
         return 'bg-yellow-500 text-white border-yellow-600';
       case 'released':
-        return 'bg-blue-500 text-white border-blue-600';
+        return 'bg-slate-400 text-white border-slate-500';
       case 'expired':
         return 'bg-red-500 text-white border-red-600';
       default:
@@ -215,6 +226,48 @@ export default function ItemsPage() {
   const handleCloseModal = () => {
     setEditingItem(null);
     setViewingItem(null);
+  };
+
+  const openClaimsDrawer = async (item: Item) => {
+    setClaimsDrawerItem(item);
+    setDrawerClaims([]);
+    setDrawerLoading(true);
+    try {
+      const response = await api.claims.getByVenue(item.venue_id, { limit: 50 });
+      if (response.success && response.data) {
+        const itemClaims = response.data.data.filter(c => c.item_id === item.id);
+        setDrawerClaims(itemClaims);
+      }
+    } catch {
+      setDrawerClaims([]);
+    } finally {
+      setDrawerLoading(false);
+    }
+  };
+
+  const handleMarkCollected = async (claimId: string) => {
+    setCollectingClaimId(claimId);
+    setReleaseModal(null);
+    try {
+      const [claimResponse, itemResponse] = await Promise.all([
+        api.claims.markCollected(claimId),
+        claimsDrawerItem ? api.items.update(claimsDrawerItem.id, { status: 'released' }) : Promise.resolve(null),
+      ]);
+      if (claimResponse.success) {
+        setDrawerClaims(prev => prev.map(c =>
+          c.id === claimId ? { ...c, ...claimResponse.data } : c
+        ));
+      }
+      if (itemResponse && itemResponse.success) {
+        setItems(prev => prev.map(i =>
+          i.id === claimsDrawerItem?.id ? { ...i, ...itemResponse.data } : i
+        ));
+      }
+    } catch {
+      alert('Failed to mark as released');
+    } finally {
+      setCollectingClaimId(null);
+    }
   };
 
   // Pagination
@@ -434,6 +487,11 @@ export default function ItemsPage() {
                       <button onClick={() => handleViewItem(item)} className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded" title="View"><EyeIcon className="h-4 w-4" /></button>
                       <button onClick={() => handleEditItem(item)} className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded" title="Edit"><PencilIcon className="h-4 w-4" /></button>
                       <button onClick={() => handleDeleteItem(item.id)} className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded" title="Delete"><TrashIcon className="h-4 w-4" /></button>
+                      {item.claim_count > 0 && (
+                        <button onClick={() => openClaimsDrawer(item)} className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded text-xs font-semibold" title="View claims">
+                          {item.claim_count} claim{item.claim_count !== 1 ? 's' : ''}
+                        </button>
+                      )}
                     </div>
                   </li>
                 ))}
@@ -486,9 +544,16 @@ export default function ItemsPage() {
                           {new Date(item.date_found).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
                         </td>
                         <td className="px-6 py-4">
-                          <span className="inline-flex w-6 h-6 items-center justify-center rounded-full bg-slate-100 text-xs font-semibold text-slate-600">
-                            {item.claim_count}
-                          </span>
+                          {item.claim_count > 0 ? (
+                            <button
+                              onClick={() => openClaimsDrawer(item)}
+                              className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 text-xs font-semibold hover:bg-blue-100 transition-colors"
+                            >
+                              {item.claim_count} claim{item.claim_count !== 1 ? 's' : ''}
+                            </button>
+                          ) : (
+                            <span className="inline-flex w-6 h-6 items-center justify-center rounded-full bg-slate-100 text-xs font-semibold text-slate-400">0</span>
+                          )}
                         </td>
                         <td className="px-6 py-4">
                           <div className="flex items-center gap-1">
@@ -658,7 +723,135 @@ export default function ItemsPage() {
             </DialogPanel>
           </div>
         </Dialog>
+
+        {/* ── Item Claims Drawer ──────────────────────────────────── */}
+        {claimsDrawerItem && (
+          <div className="fixed inset-0 z-50 flex justify-end" onClick={() => setClaimsDrawerItem(null)}>
+            <div
+              className="w-full max-w-md bg-white h-full shadow-xl flex flex-col"
+              onClick={e => e.stopPropagation()}
+            >
+              {/* Header */}
+              <div className="flex items-center justify-between px-5 py-4 border-b border-slate-200">
+                <div>
+                  <h3 className="text-base font-semibold text-slate-900">Claims</h3>
+                  <p className="text-xs text-slate-500 truncate max-w-[260px]">{claimsDrawerItem.title}</p>
+                </div>
+                <button
+                  onClick={() => setClaimsDrawerItem(null)}
+                  className="p-1.5 rounded-full text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors"
+                  aria-label="Close"
+                >
+                  <XMarkIcon className="h-5 w-5" />
+                </button>
+              </div>
+
+              {/* Body */}
+              <div className="flex-1 overflow-y-auto p-4 space-y-3">
+                {drawerLoading && (
+                  <div className="flex justify-center py-10">
+                    <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-slate-900" />
+                  </div>
+                )}
+                {!drawerLoading && drawerClaims.length === 0 && (
+                  <p className="text-sm text-slate-500 text-center py-10">No claims for this item.</p>
+                )}
+                {!drawerLoading && drawerClaims.map(claim => (
+                  <div key={claim.id} className="rounded-xl border border-slate-200 bg-white p-4 space-y-3">
+                    {/* Top row: claimant info + status + action */}
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="space-y-0.5">
+                        {claim.claimant?.full_name ? (
+                          <div className="flex items-center gap-1.5 text-sm font-medium text-slate-900">
+                            <UserIcon className="h-4 w-4 text-slate-400 shrink-0" />
+                            {claim.claimant.full_name}
+                          </div>
+                        ) : (
+                          <div className="flex items-center gap-1.5 text-sm text-slate-400">
+                            <UserIcon className="h-4 w-4 shrink-0" />
+                            Unknown claimant
+                          </div>
+                        )}
+                        {claim.claimant?.email && (
+                          <div className="flex items-center gap-1.5 text-xs text-slate-500">
+                            <EnvelopeIcon className="h-3.5 w-3.5 text-slate-400 shrink-0" />
+                            <a href={`mailto:${claim.claimant.email}`} className="hover:underline text-blue-600">{claim.claimant.email}</a>
+                          </div>
+                        )}
+                      </div>
+                      <div className="flex flex-col items-end gap-1.5 shrink-0">
+                        <span className={`inline-flex px-2 py-0.5 text-[10px] font-semibold rounded-full capitalize ${
+                          claim.status === 'approved' ? 'bg-green-100 text-green-700' :
+                          claim.status === 'rejected' ? 'bg-red-100 text-red-700' :
+                          'bg-yellow-100 text-yellow-700'
+                        }`}>
+                          {claim.status}
+                        </span>
+                        {claim.status === 'approved' && !claim.closed_at && claimsDrawerItem?.status !== 'released' && (
+                          <button
+                            onClick={() => setReleaseModal({ claimId: claim.id, reason: '' })}
+                            disabled={collectingClaimId === claim.id}
+                            className="inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-medium rounded-md text-white bg-slate-900 hover:bg-slate-700 disabled:opacity-50 transition-colors"
+                          >
+                            <CheckBadgeIcon className="h-3.5 w-3.5" />
+                            {collectingClaimId === claim.id ? 'Marking…' : 'Mark as Released'}
+                          </button>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Pickup code */}
+                    {claim.pickup_code && (
+                      <div className="flex items-center gap-1.5 text-xs text-slate-600">
+                        <KeyIcon className="h-3.5 w-3.5 text-slate-400 shrink-0" />
+                        Pickup code: <span className="font-mono font-bold bg-slate-100 px-1.5 py-0.5 rounded">{claim.pickup_code}</span>
+                      </div>
+                    )}
+
+                    {/* Customer description */}
+                    {claim.search_description && (
+                      <p className="text-xs text-slate-500 italic border-l-2 border-amber-300 pl-2">&ldquo;{claim.search_description}&rdquo;</p>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
       </div>
+
+      {/* ── Release Confirmation Modal ──────────────────────────────── */}
+      {releaseModal && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/40" onClick={() => setReleaseModal(null)}>
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm mx-4 p-6 space-y-4" onClick={e => e.stopPropagation()}>
+            <h3 className="text-base font-semibold text-slate-900">Mark as Released</h3>
+            <p className="text-sm text-slate-500">Provide a reason for releasing this item to the claimant.</p>
+            <textarea
+              autoFocus
+              rows={3}
+              placeholder="e.g. Verified ID and pickup code matched"
+              value={releaseModal.reason}
+              onChange={e => setReleaseModal(prev => prev ? { ...prev, reason: e.target.value } : null)}
+              className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-900 resize-none"
+            />
+            <div className="flex justify-end gap-2">
+              <button
+                onClick={() => setReleaseModal(null)}
+                className="px-3 py-1.5 text-xs font-medium rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => handleMarkCollected(releaseModal.claimId)}
+                disabled={!releaseModal.reason.trim() || collectingClaimId === releaseModal.claimId}
+                className="px-3 py-1.5 text-xs font-medium rounded-lg text-white bg-slate-900 hover:bg-slate-700 disabled:opacity-50 transition-colors"
+              >
+                {collectingClaimId === releaseModal.claimId ? 'Marking…' : 'Confirm Release'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </Layout>
   );
 }

@@ -11,7 +11,7 @@ import {
   TagIcon,
 } from '@heroicons/react/24/outline';
 import { buttonStyles, inputStyles } from '@/utils/styles';
-import { ITEM_CATEGORIES, COLLECTED_STATUSES } from '@/constants/items';
+import { ITEM_CATEGORIES } from '@/constants/items';
 
 interface ItemModalProps {
   item: Item | null;
@@ -26,7 +26,6 @@ export default function ItemModal({ item, isOpen, mode, onClose, onSave }: ItemM
   const [editData, setEditData] = useState<Item | null>(item);
   const closeButtonRef = useRef<HTMLButtonElement>(null);
   const [isLoading, setIsLoading] = useState(false);
-  const [markReleased, setMarkReleased] = useState(false);
 
   // Close on Escape
   useEffect(() => {
@@ -43,10 +42,9 @@ export default function ItemModal({ item, isOpen, mode, onClose, onSave }: ItemM
     if (isOpen) closeButtonRef.current?.focus();
   }, [isOpen]);
 
-  // Reset collection selection whenever a new item is opened or mode switches
+  // Sync editData when a new item is opened
   if (editData?.id !== item?.id && item) {
     setEditData(item);
-    setMarkReleased(COLLECTED_STATUSES.has(item.status));
   }
 
 
@@ -72,11 +70,8 @@ export default function ItemModal({ item, isOpen, mode, onClose, onSave }: ItemM
     if (!editData || !onSave) return;
     setIsLoading(true);
     try {
-      const finalData: Item = markReleased
-        ? { ...editData, status: 'released' }
-        : editData;
       await new Promise(resolve => setTimeout(resolve, 1000));
-      onSave(finalData);
+      onSave(editData);
       onClose();
     } catch (error) {
       console.error('Error updating item:', error);
@@ -150,19 +145,6 @@ export default function ItemModal({ item, isOpen, mode, onClose, onSave }: ItemM
             </div>
           )}
 
-          {/* Collection Section (Edit mode when reserved) */}
-          {!isViewMode && item.status === 'reserved' && (
-            <div className="space-y-2">
-              <label className="flex items-center gap-2 text-sm font-medium text-slate-700">
-                <input
-                  type="checkbox"
-                  checked={markReleased}
-                  onChange={e => setMarkReleased(e.target.checked)}
-                />
-                Mark as released (item collected by owner)
-              </label>
-            </div>
-          )}
           {/* Images */}
           {currentData.images && currentData.images.length > 0 && (
             <div>

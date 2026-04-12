@@ -37,7 +37,7 @@ const adminNavigation = [
 export default function Layout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
-  const { venue, logout, isAuthenticated, isInitialized, checkAuth, user } = useAuthStore();
+  const { venue, logout, isAuthenticated, isInitialized, user } = useAuthStore();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [venueMenuOpen, setVenueMenuOpen] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
@@ -83,11 +83,6 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   if (user?.role === 'venue_admin') {
     navigation.push({ name: 'Staff', href: ROUTES.STAFF, icon: UsersIcon });
   }
-
-  useEffect(() => {
-    checkAuth();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
 
   useEffect(() => {
     if (isInitialized && !isAuthenticated && pathname !== ROUTES.LOGIN) {
