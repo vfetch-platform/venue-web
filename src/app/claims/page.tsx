@@ -96,10 +96,16 @@ export default function ClaimsPage() {
 
   const getStatusColor = (status: ClaimStatus) => {
     switch (status) {
-      case 'pending': return 'bg-yellow-100 text-yellow-800';
-      case 'approved': return 'bg-green-100 text-green-800';
-      case 'rejected': return 'bg-red-100 text-red-800';
-      default: return 'bg-slate-100 text-slate-800';
+      case 'pending':
+        return 'bg-yellow-100 text-yellow-800';
+      case 'approved':
+        return 'bg-green-100 text-green-800';
+      case 'rejected':
+        return 'bg-red-100 text-red-800';
+      case 'expired':
+        return 'bg-gray-100 text-gray-800';
+      default:
+        return 'bg-gray-100 text-gray-800';
     }
   };
 
@@ -136,12 +142,22 @@ export default function ClaimsPage() {
         setClaims(prev => prev.map(claim => {
           if (claim.id !== claimId) return claim;
           const updated = response.data as Claim;
-          return { ...claim, ...updated, item: updated.item || claim.item, user: updated.user || claim.user } as Claim;
+          return {
+            ...claim,
+            ...updated,
+            item: updated.item || claim.item,
+            claimant: updated.claimant || claim.claimant,
+          } as Claim;
         }));
         setSelectedClaim(prev => {
           if (!prev || prev.id !== claimId) return prev;
           const updated = response.data as Claim;
-          return { ...prev, ...updated, item: updated.item || prev.item, user: updated.user || prev.user };
+          return {
+            ...prev,
+            ...updated,
+            item: updated.item || prev.item,
+            claimant: updated.claimant || prev.claimant,
+          };
         });
       }
     } catch (error) {
@@ -152,7 +168,7 @@ export default function ClaimsPage() {
     }
   };
 
-const formatDate = (dateString: string) => {
+  const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-GB', {
       year: 'numeric',
       month: 'short',
@@ -173,10 +189,10 @@ const formatDate = (dateString: string) => {
 
   const getCardAccent = (status: ClaimStatus) => {
     switch (status) {
-      case 'pending': return 'text-yellow-600 border-yellow-400';
-      case 'approved': return 'text-green-600 border-green-400';
-      case 'rejected': return 'text-red-600 border-red-400';
-      default: return 'text-slate-600 border-slate-300';
+      case 'pending': return 'text-yellow-600 border-yellow-200';
+      case 'approved': return 'text-green-600 border-green-200';
+      case 'rejected': return 'text-red-600 border-red-200';
+      default: return 'text-gray-600 border-gray-200';
     }
   };
 
@@ -289,10 +305,10 @@ const formatDate = (dateString: string) => {
                           <span className={`inline-flex px-2 py-0.5 text-xs font-semibold rounded-full capitalize ${getStatusColor(claim.status)}`}>
                             {claim.status}
                           </span>
-                          {claim.user?.first_name && (
+                          {claim.claimant?.full_name && (
                             <span className="text-xs text-slate-500 flex items-center gap-1">
                               <UserIcon className="h-3 w-3" />
-                              {[claim.user.first_name, claim.user.last_name].filter(Boolean).join(' ')}
+                              {claim.claimant.full_name}
                             </span>
                           )}
                         </div>
@@ -412,25 +428,25 @@ const formatDate = (dateString: string) => {
                 {/* Claimant details */}
                 <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg space-y-1.5">
                   <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">Claimant Details</p>
-                  {selectedClaim.user?.first_name && (
+                  {selectedClaim.claimant?.full_name && (
                     <div className="flex items-center gap-2 text-sm text-slate-700">
                       <UserIcon className="h-4 w-4 text-slate-400 shrink-0" />
-                      <span className="font-medium">{[selectedClaim.user.first_name, selectedClaim.user.last_name].filter(Boolean).join(' ')}</span>
+                      <span className="font-medium">{selectedClaim.claimant.full_name}</span>
                     </div>
                   )}
-                  {selectedClaim.user?.email && (
+                  {selectedClaim.claimant?.email && (
                     <div className="flex items-center gap-2 text-sm text-slate-700">
                       <EnvelopeIcon className="h-4 w-4 text-slate-400 shrink-0" />
-                      <a href={`mailto:${selectedClaim.user.email}`} className="text-blue-600 hover:underline">
-                        {selectedClaim.user.email}
+                      <a href={`mailto:${selectedClaim.claimant.email}`} className="text-blue-600 hover:underline">
+                        {selectedClaim.claimant.email}
                       </a>
                     </div>
                   )}
-                  {selectedClaim.user?.phone_number && (
+                  {selectedClaim.claimant?.phone && (
                     <div className="flex items-center gap-2 text-sm text-slate-700">
                       <PhoneIcon className="h-4 w-4 text-slate-400 shrink-0" />
-                      <a href={`tel:${selectedClaim.user.phone_number}`} className="text-blue-600 hover:underline">
-                        {selectedClaim.user.phone_number}
+                      <a href={`tel:${selectedClaim.claimant.phone}`} className="text-blue-600 hover:underline">
+                        {selectedClaim.claimant.phone}
                       </a>
                     </div>
                   )}

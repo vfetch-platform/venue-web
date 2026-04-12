@@ -323,7 +323,7 @@ export const api = {
       return apiRequest<ApiResponse<Claim>>(`/claims/${id}/collect`, {
         method: 'POST',
         body: JSON.stringify({
-          collection_method: method,
+          collection_mode: method,
           ...(pickupCode ? { pickupCode } : {}),
         }),
       });

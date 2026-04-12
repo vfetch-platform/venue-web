@@ -150,7 +150,7 @@ export default function ItemModal({ item, isOpen, mode, onClose, onSave }: ItemM
             </div>
           )}
 
-          {/* Collection Section (Edit mode when reserved/claimed) */}
+          {/* Collection Section (Edit mode when reserved) */}
           {!isViewMode && item.status === 'reserved' && (
             <div className="space-y-2">
               <label className="flex items-center gap-2 text-sm font-medium text-slate-700">
