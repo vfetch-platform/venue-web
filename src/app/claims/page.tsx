@@ -107,9 +107,22 @@ export default function ClaimsPage() {
     return selectedWorkflowCards.has(getClaimCardKey(claim));
   });
 
+  const workflowPriority = (state?: WorkflowState): number => {
+    if (state === 'pending_review') return 1;
+    if (state === 'approved_ready_for_pickup' || state === 'approved_courier_arranged') return 2;
+    if (state === 'approved_awaiting_payment') return 3;
+    return 4;
+  };
+
+  const sortedClaims = [...filteredClaims].sort((a, b) => {
+    const diff = workflowPriority(a.workflow_state) - workflowPriority(b.workflow_state);
+    if (diff !== 0) return diff;
+    return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+  });
+
   // Paginated claims
-  const totalPages = Math.ceil(filteredClaims.length / claimsPerPage);
-  const pagedClaims = filteredClaims.slice((currentPage - 1) * claimsPerPage, currentPage * claimsPerPage);
+  const totalPages = Math.ceil(sortedClaims.length / claimsPerPage);
+  const pagedClaims = sortedClaims.slice((currentPage - 1) * claimsPerPage, currentPage * claimsPerPage);
 
   // Open confirmation modal
   const requestApproval = (claimId: string, itemTitle: string) => {
@@ -269,9 +282,9 @@ export default function ClaimsPage() {
         {/* Claims List */}
         <div className={cardStyles}>
           <div className="px-4 sm:px-6 py-4 border-b border-slate-200 flex items-center justify-between flex-wrap gap-2">
-            <h3 className="text-base sm:text-lg font-medium text-slate-900">Claims ({filteredClaims.length})</h3>
-            {filteredClaims.length > 0 && (
-              <span className="text-xs text-slate-500">Showing {(currentPage - 1) * claimsPerPage + 1}–{Math.min(currentPage * claimsPerPage, filteredClaims.length)} of {filteredClaims.length}</span>
+            <h3 className="text-base sm:text-lg font-medium text-slate-900">Claims ({sortedClaims.length})</h3>
+            {sortedClaims.length > 0 && (
+              <span className="text-xs text-slate-500">Showing {(currentPage - 1) * claimsPerPage + 1}–{Math.min(currentPage * claimsPerPage, sortedClaims.length)} of {sortedClaims.length}</span>
             )}
           </div>
 
@@ -289,19 +302,19 @@ export default function ClaimsPage() {
             </div>
           )}
 
-          {!isLoading && !error && filteredClaims.length === 0 && claims.length === 0 && (
+          {!isLoading && !error && sortedClaims.length === 0 && claims.length === 0 && (
             <div className="p-6 text-center text-slate-500">
               <p>No claims yet. Claims will appear here when customers claim items.</p>
             </div>
           )}
 
-          {!isLoading && !error && filteredClaims.length === 0 && claims.length > 0 && (
+          {!isLoading && !error && sortedClaims.length === 0 && claims.length > 0 && (
             <div className="p-6 text-center text-slate-500 text-sm">
               No claims found matching your criteria.
             </div>
           )}
 
-          {!isLoading && !error && filteredClaims.length > 0 && (
+          {!isLoading && !error && sortedClaims.length > 0 && (
             <>
               <div className="p-4 space-y-3">
                 {pagedClaims.map((claim) => {
@@ -335,13 +348,18 @@ export default function ClaimsPage() {
                             {wfConfig.label}
                           </span>
                           {/* Payment status tag — only when actionable */}
-                          {paymentTag?.label && (
+                          {/* Payment tag — hidden when workflow state already conveys payment info */}
+                          {paymentTag?.label &&
+                            claim.workflow_state !== 'approved_awaiting_payment' &&
+                            claim.workflow_state !== 'approved_ready_for_pickup' &&
+                            claim.workflow_state !== 'approved_courier_arranged' && (
                             <span className={`inline-flex px-2 py-0.5 text-xs font-semibold rounded-full ${paymentTag.classes}`}>
                               {paymentTag.label}
                             </span>
                           )}
-                          {/* Collection mode tag */}
-                          {collectionTag && (
+                          {/* Collection mode tag — hide self_pickup when workflow already says Ready for Pickup */}
+                          {collectionTag &&
+                            !(claim.collection_mode === 'self_pickup' && claim.workflow_state === 'approved_ready_for_pickup') && (
                             <span className={`inline-flex px-2 py-0.5 text-xs font-semibold rounded-full ${collectionTag.classes}`}>
                               {collectionTag.label}
                             </span>
@@ -454,12 +472,16 @@ export default function ClaimsPage() {
                         <span className={`shrink-0 inline-flex px-2 py-1 text-xs font-semibold rounded-full ${wfConfig.tagClasses}`}>
                           {wfConfig.label}
                         </span>
-                        {paymentTag?.label && (
+                        {paymentTag?.label &&
+                          selectedClaim.workflow_state !== 'approved_awaiting_payment' &&
+                          selectedClaim.workflow_state !== 'approved_ready_for_pickup' &&
+                          selectedClaim.workflow_state !== 'approved_courier_arranged' && (
                           <span className={`shrink-0 inline-flex px-2 py-1 text-xs font-semibold rounded-full ${paymentTag.classes}`}>
                             {paymentTag.label}
                           </span>
                         )}
-                        {collectionTag && (
+                        {collectionTag &&
+                          !(selectedClaim.collection_mode === 'self_pickup' && selectedClaim.workflow_state === 'approved_ready_for_pickup') && (
                           <span className={`shrink-0 inline-flex px-2 py-1 text-xs font-semibold rounded-full ${collectionTag.classes}`}>
                             {collectionTag.label}
                           </span>
