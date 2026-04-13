@@ -20,9 +20,10 @@ import {
   ExclamationTriangleIcon,
   UserIcon,
   EnvelopeIcon,
-  PhoneIcon,
   KeyIcon,
   ClockIcon,
+  CreditCardIcon,
+  CheckBadgeIcon,
   TruckIcon,
   MapPinIcon,
   ArrowTopRightOnSquareIcon,
@@ -356,13 +357,25 @@ export default function ClaimsPage() {
                         <div className="text-xs text-slate-500">{formatDate(claim.created_at)}</div>
                       </div>
 
-                      {/* Action */}
-                      <button
-                        onClick={() => setSelectedClaim(claim)}
-                        className="shrink-0 inline-flex items-center px-3 sm:px-4 py-2 text-xs sm:text-sm font-medium rounded-lg text-white bg-slate-900 hover:bg-slate-800 transition-colors"
-                      >
-                        Review
-                      </button>
+                      {/* Actions */}
+                      <div className="shrink-0 flex flex-col gap-2">
+                        <button
+                          onClick={() => setSelectedClaim(claim)}
+                          className="inline-flex items-center px-3 sm:px-4 py-2 text-xs sm:text-sm font-medium rounded-lg text-white bg-slate-900 hover:bg-slate-800 transition-colors"
+                        >
+                          View Details
+                        </button>
+                        {(claim.workflow_state === 'approved_ready_for_pickup' || claim.workflow_state === 'approved_courier_arranged') && (
+                          <button
+                            onClick={() => requestCollection(claim.id, claim.item?.title || 'this item')}
+                            disabled={isLoading}
+                            className="inline-flex items-center justify-center gap-1 px-3 sm:px-4 py-2 text-xs sm:text-sm font-medium rounded-lg text-indigo-700 bg-indigo-50 hover:bg-indigo-100 disabled:opacity-50 transition-colors"
+                          >
+                            <CheckBadgeIcon className="h-4 w-4" />
+                            {claim.workflow_state === 'approved_courier_arranged' ? 'Confirm Delivery' : 'Mark Collected'}
+                          </button>
+                        )}
+                      </div>
                     </div>
                   );
                 })}
@@ -424,11 +437,11 @@ export default function ClaimsPage() {
               role="dialog"
               aria-modal="true"
               aria-labelledby="claim-modal-title"
-              className="relative mx-auto p-5 border w-full max-w-lg shadow-lg rounded-xl bg-white max-h-[90vh] overflow-y-auto"
+              className="relative mx-auto border w-full max-w-lg shadow-lg rounded-xl bg-white max-h-[90vh] flex flex-col"
               onClick={(e) => e.stopPropagation()}
             >
               {/* Modal header */}
-              <div className="flex justify-between items-start mb-4">
+              <div className="flex justify-between items-center px-5 pt-5 pb-4 shrink-0">
                 <div className="space-y-1.5">
                   <h3 id="claim-modal-title" className="text-lg font-semibold text-slate-900">Claim Details</h3>
                   {/* Workflow state tag */}
@@ -438,16 +451,16 @@ export default function ClaimsPage() {
                     const paymentTag = selectedClaim.payment_status ? PAYMENT_STATUS_TAGS[selectedClaim.payment_status] : null;
                     return (
                       <div className="flex flex-wrap gap-1.5">
-                        <span className={`inline-flex px-2 py-0.5 text-xs font-semibold rounded-full ${wfConfig.tagClasses}`}>
+                        <span className={`shrink-0 inline-flex px-2 py-1 text-xs font-semibold rounded-full ${wfConfig.tagClasses}`}>
                           {wfConfig.label}
                         </span>
                         {paymentTag?.label && (
-                          <span className={`inline-flex px-2 py-0.5 text-xs font-semibold rounded-full ${paymentTag.classes}`}>
+                          <span className={`shrink-0 inline-flex px-2 py-1 text-xs font-semibold rounded-full ${paymentTag.classes}`}>
                             {paymentTag.label}
                           </span>
                         )}
                         {collectionTag && (
-                          <span className={`inline-flex px-2 py-0.5 text-xs font-semibold rounded-full ${collectionTag.classes}`}>
+                          <span className={`shrink-0 inline-flex px-2 py-1 text-xs font-semibold rounded-full ${collectionTag.classes}`}>
                             {collectionTag.label}
                           </span>
                         )}
@@ -464,7 +477,9 @@ export default function ClaimsPage() {
                 </button>
               </div>
 
-              {/* Item Images */}
+              {/* Scrollable body */}
+              <div className="overflow-y-auto px-5 pb-2 flex-1">
+                {/* Item Images */}
               {selectedClaim.item?.images && selectedClaim.item.images.length > 0 ? (
                 <div className="mb-4 flex gap-2 overflow-x-auto pb-1">
                   {selectedClaim.item.images.map((img, i) => (
@@ -504,14 +519,6 @@ export default function ClaimsPage() {
                       </a>
                     </div>
                   )}
-                  {selectedClaim.claimant?.phone && (
-                    <div className="flex items-center gap-2 text-sm text-slate-700">
-                      <PhoneIcon className="h-4 w-4 text-slate-400 shrink-0" />
-                      <a href={`tel:${selectedClaim.claimant.phone}`} className="text-blue-600 hover:underline">
-                        {selectedClaim.claimant.phone}
-                      </a>
-                    </div>
-                  )}
                 </div>
 
                 {/* Pickup & Verification */}
@@ -527,6 +534,12 @@ export default function ClaimsPage() {
                     <div className="flex items-center gap-2 text-sm text-slate-700">
                       <ClockIcon className="h-4 w-4 text-slate-400 shrink-0" />
                       <span>Expires: {formatDate(selectedClaim.expires_at)}</span>
+                    </div>
+                  )}
+                  {selectedClaim.payment_status && selectedClaim.payment_status !== 'not_required' && (
+                    <div className="flex items-center gap-2 text-sm text-slate-700">
+                      <CreditCardIcon className="h-4 w-4 text-slate-400 shrink-0" />
+                      <span className="capitalize">{selectedClaim.payment_status.replace(/_/g, ' ')}</span>
                     </div>
                   )}
                 </div>
@@ -595,39 +608,44 @@ export default function ClaimsPage() {
                   </div>
                 )}
               </div>
-
-              {/* Modal Actions */}
-              <div className="mt-6 space-y-3">
-                {selectedClaim.workflow_state === 'pending_review' && (
-                  <div className="flex gap-3">
-                    <button
-                      onClick={() => requestApproval(selectedClaim.id, selectedClaim.item?.title || 'this item')}
-                      disabled={isLoading}
-                      className="flex-1 inline-flex justify-center items-center px-4 py-2.5 text-sm font-medium rounded-lg text-white bg-green-600 hover:bg-green-700 disabled:opacity-50 transition-colors"
-                    >
-                      <CheckIcon className="w-4 h-4 mr-1.5" /> Approve
-                    </button>
-                    <button
-                      onClick={() => requestRejection(selectedClaim.id, selectedClaim.item?.title || 'this item')}
-                      disabled={isLoading}
-                      className="flex-1 inline-flex justify-center items-center px-4 py-2.5 text-sm font-medium rounded-lg text-white bg-red-600 hover:bg-red-700 disabled:opacity-50 transition-colors"
-                    >
-                      <XMarkIcon className="w-4 h-4 mr-1.5" /> Reject
-                    </button>
-                  </div>
-                )}
-
-                {(selectedClaim.workflow_state === 'approved_ready_for_pickup' || selectedClaim.workflow_state === 'approved_courier_arranged') && (
-                  <button
-                    onClick={() => requestCollection(selectedClaim.id, selectedClaim.item?.title || 'this item')}
-                    disabled={isLoading}
-                    className="w-full inline-flex justify-center items-center px-4 py-2.5 text-sm font-medium rounded-lg text-white bg-slate-900 hover:bg-slate-800 disabled:opacity-50 transition-colors"
-                  >
-                    <CheckIcon className="w-4 h-4 mr-1.5" />
-                    {selectedClaim.workflow_state === 'approved_courier_arranged' ? 'Confirm Delivery' : 'Mark as Collected'}
-                  </button>
-                )}
               </div>
+
+              {/* Sticky footer actions */}
+              {(selectedClaim.workflow_state === 'pending_review' ||
+                selectedClaim.workflow_state === 'approved_ready_for_pickup' ||
+                selectedClaim.workflow_state === 'approved_courier_arranged') && (
+                <div className="px-5 py-4 border-t border-slate-100 shrink-0">
+                  {selectedClaim.workflow_state === 'pending_review' && (
+                    <div className="flex gap-3">
+                      <button
+                        onClick={() => requestApproval(selectedClaim.id, selectedClaim.item?.title || 'this item')}
+                        disabled={isLoading}
+                        className="flex-1 inline-flex justify-center items-center px-4 py-2.5 text-sm font-medium rounded-lg text-white bg-green-600 hover:bg-green-700 disabled:opacity-50 transition-colors"
+                      >
+                        <CheckIcon className="w-4 h-4 mr-1.5" /> Approve
+                      </button>
+                      <button
+                        onClick={() => requestRejection(selectedClaim.id, selectedClaim.item?.title || 'this item')}
+                        disabled={isLoading}
+                        className="flex-1 inline-flex justify-center items-center px-4 py-2.5 text-sm font-medium rounded-lg text-white bg-red-600 hover:bg-red-700 disabled:opacity-50 transition-colors"
+                      >
+                        <XMarkIcon className="w-4 h-4 mr-1.5" /> Reject
+                      </button>
+                    </div>
+                  )}
+
+                  {(selectedClaim.workflow_state === 'approved_ready_for_pickup' || selectedClaim.workflow_state === 'approved_courier_arranged') && (
+                    <button
+                      onClick={() => requestCollection(selectedClaim.id, selectedClaim.item?.title || 'this item')}
+                      disabled={isLoading}
+                      className="w-full inline-flex justify-center items-center gap-1.5 px-4 py-2.5 text-sm font-medium rounded-lg text-indigo-700 bg-indigo-50 hover:bg-indigo-100 disabled:opacity-50 transition-colors"
+                    >
+                      <CheckBadgeIcon className="w-4 h-4" />
+                      {selectedClaim.workflow_state === 'approved_courier_arranged' ? 'Confirm Delivery' : 'Mark as Collected'}
+                    </button>
+                  )}
+                </div>
+              )}
             </div>
           </div>
         , document.body)}
