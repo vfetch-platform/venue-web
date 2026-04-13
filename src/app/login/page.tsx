@@ -31,12 +31,13 @@ export default function LoginPage() {
   return (
     <div className="min-h-screen flex">
       {/* Left panel */}
-      <div className="hidden lg:flex lg:w-1/2 bg-slate-900 flex-col justify-between p-12 relative overflow-hidden">
+      <div className="hidden lg:flex lg:w-1/2 min-h-screen bg-slate-900 flex-col justify-between p-12 relative overflow-hidden">
         {/* Background image */}
         <Image
           src="/login-bg.jpg"
           alt=""
           fill
+          sizes="50vw"
           className="object-cover"
           priority
         />
