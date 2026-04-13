@@ -5,20 +5,27 @@ import { createPortal } from 'react-dom';
 import Image from 'next/image';
 import Layout from '@/components/Layout';
 import { useAuthStore } from '@/store/auth';
-import { Claim, ClaimStatus } from '@/types';
-import { CLAIM_STATUSES } from '@/constants/claims';
+import { Claim, WorkflowState } from '@/types';
+import {
+  WORKFLOW_STATE_CONFIGS,
+  WorkflowStateConfig,
+  getWorkflowStateConfig,
+  PAYMENT_STATUS_TAGS,
+  COLLECTION_MODE_TAGS,
+} from '@/constants/claims';
 import { api } from '@/services/api';
 import {
-  FunnelIcon,
   CheckIcon,
   XMarkIcon,
   ExclamationTriangleIcon,
   UserIcon,
   EnvelopeIcon,
+  PhoneIcon,
   KeyIcon,
   ClockIcon,
-  CreditCardIcon,
-  CheckBadgeIcon,
+  TruckIcon,
+  MapPinIcon,
+  ArrowTopRightOnSquareIcon,
 } from '@heroicons/react/24/outline';
 import { cardStyles } from '@/utils/styles';
 
@@ -26,16 +33,15 @@ import { cardStyles } from '@/utils/styles';
 export default function ClaimsPage() {
   const { venue } = useAuthStore();
   const [claims, setClaims] = useState<Claim[]>([]);
-  const [selectedStatuses, setSelectedStatuses] = useState<Set<ClaimStatus>>(new Set());
+  const [selectedWorkflowCards, setSelectedWorkflowCards] = useState<Set<string>>(new Set());
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [selectedClaim, setSelectedClaim] = useState<Claim | null>(null);
   const [lightboxImage, setLightboxImage] = useState<string | null>(null);
-  const [collectingClaimId, setCollectingClaimId] = useState<string | null>(null);
 
   // Confirmation modal state
   const [confirmAction, setConfirmAction] = useState<{
-    type: 'approve' | 'reject';
+    type: 'approve' | 'reject' | 'collect';
     claimId: string;
     itemTitle: string;
   } | null>(null);
@@ -87,30 +93,24 @@ export default function ClaimsPage() {
     }
   };
 
+  /** Returns the WorkflowStateConfig card key that a claim belongs to. */
+  const getClaimCardKey = (claim: Claim): string => {
+    const ws = claim.workflow_state;
+    if (!ws) return 'pending_review';
+    const config = getWorkflowStateConfig(ws);
+    return config.state;
+  };
+
   const filteredClaims = claims.filter(claim => {
-    return selectedStatuses.size === 0 || selectedStatuses.has(claim.status as ClaimStatus);
+    if (selectedWorkflowCards.size === 0) return true;
+    return selectedWorkflowCards.has(getClaimCardKey(claim));
   });
 
   // Paginated claims
   const totalPages = Math.ceil(filteredClaims.length / claimsPerPage);
   const pagedClaims = filteredClaims.slice((currentPage - 1) * claimsPerPage, currentPage * claimsPerPage);
 
-  const getStatusColor = (status: ClaimStatus) => {
-    switch (status) {
-      case 'pending':
-        return 'bg-yellow-100 text-yellow-800';
-      case 'approved':
-        return 'bg-green-100 text-green-800';
-      case 'rejected':
-        return 'bg-red-100 text-red-800';
-      case 'expired':
-        return 'bg-gray-100 text-gray-800';
-      default:
-        return 'bg-gray-100 text-gray-800';
-    }
-  };
-
-  // Open confirmation modal instead of directly acting
+  // Open confirmation modal
   const requestApproval = (claimId: string, itemTitle: string) => {
     setConfirmAction({ type: 'approve', claimId, itemTitle });
   };
@@ -120,16 +120,23 @@ export default function ClaimsPage() {
     setConfirmAction({ type: 'reject', claimId, itemTitle });
   };
 
+  const requestCollection = (claimId: string, itemTitle: string) => {
+    setConfirmAction({ type: 'collect', claimId, itemTitle });
+  };
+
   const executeConfirmAction = async () => {
     if (!confirmAction) return;
-
     if (confirmAction.type === 'reject' && !rejectionReason.trim()) return;
 
-    await handleUpdateClaimStatus(
-      confirmAction.claimId,
-      confirmAction.type === 'approve' ? 'approved' : 'rejected',
-      confirmAction.type === 'reject' ? rejectionReason.trim() : undefined
-    );
+    if (confirmAction.type === 'collect') {
+      await handleMarkCollected(confirmAction.claimId);
+    } else {
+      await handleUpdateClaimStatus(
+        confirmAction.claimId,
+        confirmAction.type === 'approve' ? 'approved' : 'rejected',
+        confirmAction.type === 'reject' ? rejectionReason.trim() : undefined,
+      );
+    }
 
     setConfirmAction(null);
     setRejectionReason('');
@@ -140,26 +147,7 @@ export default function ClaimsPage() {
     try {
       const response = await api.claims.updateStatus(claimId, status, reason);
       if (response.success && response.data) {
-        setClaims(prev => prev.map(claim => {
-          if (claim.id !== claimId) return claim;
-          const updated = response.data as Claim;
-          return {
-            ...claim,
-            ...updated,
-            item: updated.item || claim.item,
-            claimant: updated.claimant || claim.claimant,
-          } as Claim;
-        }));
-        setSelectedClaim(prev => {
-          if (!prev || prev.id !== claimId) return prev;
-          const updated = response.data as Claim;
-          return {
-            ...prev,
-            ...updated,
-            item: updated.item || prev.item,
-            claimant: updated.claimant || prev.claimant,
-          };
-        });
+        applyClaimUpdate(claimId, response.data as Claim);
       }
     } catch (error) {
       console.error('Error updating claim:', error);
@@ -170,23 +158,33 @@ export default function ClaimsPage() {
   };
 
   const handleMarkCollected = async (claimId: string) => {
-    setCollectingClaimId(claimId);
+    const claim = claims.find(c => c.id === claimId);
+    if (!claim) return;
+
+    setIsLoading(true);
     try {
-      const response = await api.claims.markCollected(claimId);
+      const response = await api.claims.markCollected(claimId, claim.collection_mode ?? undefined, claim.pickup_code ?? undefined);
       if (response.success && response.data) {
-        const updated = response.data as Claim;
-        setClaims(prev => prev.map(c =>
-          c.id === claimId ? { ...c, ...updated, item: updated.item || c.item, claimant: updated.claimant || c.claimant } : c
-        ));
-        setSelectedClaim(prev =>
-          prev?.id === claimId ? { ...prev, ...updated, item: updated.item || prev.item, claimant: updated.claimant || prev.claimant } : prev
-        );
+        applyClaimUpdate(claimId, response.data as Claim);
       }
-    } catch {
+    } catch (error) {
+      console.error('Error marking collected:', error);
       alert('Failed to mark claim as collected');
     } finally {
-      setCollectingClaimId(null);
+      setIsLoading(false);
     }
+  };
+
+  /** Merge an updated claim into local state (list + open modal). */
+  const applyClaimUpdate = (claimId: string, updated: Claim) => {
+    setClaims(prev => prev.map(c => {
+      if (c.id !== claimId) return c;
+      return { ...c, ...updated, item: updated.item ?? c.item, claimant: updated.claimant ?? c.claimant };
+    }));
+    setSelectedClaim(prev => {
+      if (!prev || prev.id !== claimId) return prev;
+      return { ...prev, ...updated, item: updated.item ?? prev.item, claimant: updated.claimant ?? prev.claimant };
+    });
   };
 
   const formatDate = (dateString: string) => {
@@ -199,22 +197,18 @@ export default function ClaimsPage() {
     });
   };
 
-  const toggleStatusCard = (status: ClaimStatus) => {
-    setSelectedStatuses(prev => {
-      const newSet = new Set(prev);
-      if (newSet.has(status)) { newSet.delete(status); } else { newSet.add(status); }
-      return newSet;
+  const toggleWorkflowCard = (cardKey: string) => {
+    setSelectedWorkflowCards(prev => {
+      const next = new Set(prev);
+      if (next.has(cardKey)) { next.delete(cardKey); } else { next.add(cardKey); }
+      return next;
     });
     setCurrentPage(1);
   };
 
-  const getCardAccent = (status: ClaimStatus) => {
-    switch (status) {
-      case 'pending': return 'text-yellow-600 border-yellow-200';
-      case 'approved': return 'text-green-600 border-green-200';
-      case 'rejected': return 'text-red-600 border-red-200';
-      default: return 'text-gray-600 border-gray-200';
-    }
+  /** Count claims that map to a given WorkflowStateConfig card. */
+  const countForCard = (config: WorkflowStateConfig): number => {
+    return claims.filter(c => config.matches.includes(c.workflow_state as WorkflowState)).length;
   };
 
   return (
@@ -228,34 +222,42 @@ export default function ClaimsPage() {
           </div>
         </div>
 
-        {/* Status Filters */}
+        {/* Workflow State Filter Cards */}
         <div className={`${cardStyles} p-6`}>
           <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-medium text-slate-900 flex items-center">
-              <FunnelIcon className="h-5 w-5 mr-2" />
-              Filter by Status
-            </h3>
+            <h3 className="text-sm font-semibold text-slate-500 uppercase tracking-wide">Filter by stage</h3>
+            {selectedWorkflowCards.size > 0 && (
+              <button
+                onClick={() => setSelectedWorkflowCards(new Set())}
+                className="text-xs text-slate-400 hover:text-slate-600 transition-colors"
+              >
+                Clear filter
+              </button>
+            )}
           </div>
-          <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
-            {CLAIM_STATUSES.map((status) => {
-              const isSelected = selectedStatuses.has(status);
-              const count = claims.filter(c => c.status === status).length;
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+            {WORKFLOW_STATE_CONFIGS.map((config) => {
+              const isSelected = selectedWorkflowCards.has(config.state);
+              const count = countForCard(config);
               return (
                 <button
-                  key={status}
-                  onClick={() => toggleStatusCard(status)}
+                  key={config.state}
+                  onClick={() => toggleWorkflowCard(config.state)}
                   aria-pressed={isSelected}
-                  className={`p-3 sm:p-4 rounded-lg border-2 transition-all duration-200 text-center w-full focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-slate-400 ${
+                  className={`p-3 sm:p-4 rounded-lg border-2 transition-all duration-200 text-left w-full focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-slate-400 ${
                     isSelected
-                      ? `${getCardAccent(status)} bg-white shadow-sm`
+                      ? `${config.cardAccent} bg-white shadow-sm`
                       : 'border-slate-200 hover:border-slate-300'
                   }`}
                 >
-                  <div className={`text-lg sm:text-xl font-bold ${isSelected ? '' : 'text-slate-700'}`}>
+                  <div className={`text-xl sm:text-2xl font-bold ${isSelected ? '' : 'text-slate-700'}`}>
                     {count}
                   </div>
-                  <div className={`text-xs sm:text-sm capitalize ${isSelected ? '' : 'text-slate-500'}`}>
-                    {status}
+                  <div className={`text-xs font-semibold mt-0.5 ${isSelected ? '' : 'text-slate-600'}`}>
+                    {config.label}
+                  </div>
+                  <div className={`text-[10px] mt-0.5 ${isSelected ? 'opacity-70' : 'text-slate-400'}`}>
+                    {config.description}
                   </div>
                 </button>
               );
@@ -303,6 +305,10 @@ export default function ClaimsPage() {
               <div className="p-4 space-y-3">
                 {pagedClaims.map((claim) => {
                   const firstImage = claim.item?.images?.[0];
+                  const wfConfig = getWorkflowStateConfig(claim.workflow_state);
+                  const paymentTag = claim.payment_status ? PAYMENT_STATUS_TAGS[claim.payment_status] : null;
+                  const collectionTag = claim.collection_mode ? COLLECTION_MODE_TAGS[claim.collection_mode] : null;
+
                   return (
                     <div
                       key={claim.id}
@@ -322,10 +328,24 @@ export default function ClaimsPage() {
                         <p className="text-sm sm:text-base font-semibold text-slate-900 truncate">
                           {claim.item?.title || 'Unknown Item'}
                         </p>
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <span className={`inline-flex px-2 py-0.5 text-xs font-semibold rounded-full capitalize ${getStatusColor(claim.status)}`}>
-                            {claim.status}
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          {/* Workflow state tag */}
+                          <span className={`inline-flex px-2 py-0.5 text-xs font-semibold rounded-full ${wfConfig.tagClasses}`}>
+                            {wfConfig.label}
                           </span>
+                          {/* Payment status tag — only when actionable */}
+                          {paymentTag?.label && (
+                            <span className={`inline-flex px-2 py-0.5 text-xs font-semibold rounded-full ${paymentTag.classes}`}>
+                              {paymentTag.label}
+                            </span>
+                          )}
+                          {/* Collection mode tag */}
+                          {collectionTag && (
+                            <span className={`inline-flex px-2 py-0.5 text-xs font-semibold rounded-full ${collectionTag.classes}`}>
+                              {collectionTag.label}
+                            </span>
+                          )}
+                          {/* Claimant name */}
                           {claim.claimant?.full_name && (
                             <span className="text-xs text-slate-500 flex items-center gap-1">
                               <UserIcon className="h-3 w-3" />
@@ -336,25 +356,13 @@ export default function ClaimsPage() {
                         <div className="text-xs text-slate-500">{formatDate(claim.created_at)}</div>
                       </div>
 
-                      {/* Actions */}
-                      <div className="shrink-0 flex flex-col gap-2">
-                        <button
-                          onClick={() => setSelectedClaim(claim)}
-                          className="inline-flex items-center px-3 sm:px-4 py-2 text-xs sm:text-sm font-medium rounded-lg text-white bg-slate-900 hover:bg-slate-800 transition-colors"
-                        >
-                          View Details
-                        </button>
-                        {claim.status === 'approved' && !claim.closed_at && claim.item?.status !== 'released' && (
-                          <button
-                            onClick={() => handleMarkCollected(claim.id)}
-                            disabled={collectingClaimId === claim.id}
-                            className="inline-flex items-center justify-center gap-1 px-3 sm:px-4 py-2 text-xs sm:text-sm font-medium rounded-lg text-indigo-700 bg-indigo-50 hover:bg-indigo-100 disabled:opacity-50 transition-colors"
-                          >
-                            <CheckBadgeIcon className="h-4 w-4" />
-                            {collectingClaimId === claim.id ? 'Marking…' : 'Mark as Released'}
-                          </button>
-                        )}
-                      </div>
+                      {/* Action */}
+                      <button
+                        onClick={() => setSelectedClaim(claim)}
+                        className="shrink-0 inline-flex items-center px-3 sm:px-4 py-2 text-xs sm:text-sm font-medium rounded-lg text-white bg-slate-900 hover:bg-slate-800 transition-colors"
+                      >
+                        Review
+                      </button>
                     </div>
                   );
                 })}
@@ -416,23 +424,45 @@ export default function ClaimsPage() {
               role="dialog"
               aria-modal="true"
               aria-labelledby="claim-modal-title"
-              className="relative mx-auto border w-full max-w-lg shadow-lg rounded-xl bg-white max-h-[90vh] flex flex-col"
+              className="relative mx-auto p-5 border w-full max-w-lg shadow-lg rounded-xl bg-white max-h-[90vh] overflow-y-auto"
               onClick={(e) => e.stopPropagation()}
             >
-              {/* Fixed header */}
-              <div className="flex justify-between items-center px-5 pt-5 pb-4 shrink-0">
-                <h3 id="claim-modal-title" className="text-lg font-semibold text-slate-900">Claim Details</h3>
+              {/* Modal header */}
+              <div className="flex justify-between items-start mb-4">
+                <div className="space-y-1.5">
+                  <h3 id="claim-modal-title" className="text-lg font-semibold text-slate-900">Claim Details</h3>
+                  {/* Workflow state tag */}
+                  {(() => {
+                    const wfConfig = getWorkflowStateConfig(selectedClaim.workflow_state);
+                    const collectionTag = selectedClaim.collection_mode ? COLLECTION_MODE_TAGS[selectedClaim.collection_mode] : null;
+                    const paymentTag = selectedClaim.payment_status ? PAYMENT_STATUS_TAGS[selectedClaim.payment_status] : null;
+                    return (
+                      <div className="flex flex-wrap gap-1.5">
+                        <span className={`inline-flex px-2 py-0.5 text-xs font-semibold rounded-full ${wfConfig.tagClasses}`}>
+                          {wfConfig.label}
+                        </span>
+                        {paymentTag?.label && (
+                          <span className={`inline-flex px-2 py-0.5 text-xs font-semibold rounded-full ${paymentTag.classes}`}>
+                            {paymentTag.label}
+                          </span>
+                        )}
+                        {collectionTag && (
+                          <span className={`inline-flex px-2 py-0.5 text-xs font-semibold rounded-full ${collectionTag.classes}`}>
+                            {collectionTag.label}
+                          </span>
+                        )}
+                      </div>
+                    );
+                  })()}
+                </div>
                 <button
                   onClick={() => setSelectedClaim(null)}
                   aria-label="Close"
-                  className="p-1.5 rounded-full text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors"
+                  className="p-1.5 rounded-full text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors shrink-0"
                 >
                   <XMarkIcon className="h-5 w-5" />
                 </button>
               </div>
-
-              {/* Scrollable body */}
-              <div className="overflow-y-auto px-5 pb-2 flex-1">
 
               {/* Item Images */}
               {selectedClaim.item?.images && selectedClaim.item.images.length > 0 ? (
@@ -453,226 +483,259 @@ export default function ClaimsPage() {
                 </div>
               )}
 
-                <div className="space-y-4 text-sm">
-                  {/* Item name + status */}
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="font-semibold text-slate-900 text-base">{selectedClaim.item?.title}</span>
-                    <span className={`shrink-0 inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(selectedClaim.status)}`}>
-                      {selectedClaim.status}
-                    </span>
-                  </div>
+              <div className="space-y-4 text-sm">
+                {/* Item title */}
+                <p className="font-semibold text-slate-900 text-base">{selectedClaim.item?.title}</p>
 
-                  {/* Claimant details */}
-                  <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg space-y-1.5">
-                    <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">Claimant Details</p>
-                    {!selectedClaim.claimant ? (
-                      <div className="flex items-center gap-2 text-sm text-slate-400 italic">
-                        <UserIcon className="h-4 w-4 shrink-0" />
-                        <span>Claimant information not available</span>
-                      </div>
-                    ) : (
-                      <>
-                        {selectedClaim.claimant.full_name && (
-                          <div className="flex items-center gap-2 text-sm text-slate-700">
-                            <UserIcon className="h-4 w-4 text-slate-400 shrink-0" />
-                            <span className="font-medium">{selectedClaim.claimant.full_name}</span>
-                          </div>
-                        )}
-                        {selectedClaim.claimant.email && (
-                          <div className="flex items-center gap-2 text-sm text-slate-700">
-                            <EnvelopeIcon className="h-4 w-4 text-slate-400 shrink-0" />
-                            <a href={`mailto:${selectedClaim.claimant.email}`} className="text-blue-600 hover:underline">
-                              {selectedClaim.claimant.email}
-                            </a>
-                          </div>
-                        )}
-                        {!selectedClaim.claimant.full_name && !selectedClaim.claimant.email && (
-                          <div className="flex items-center gap-2 text-sm text-slate-400 italic">
-                            <UserIcon className="h-4 w-4 shrink-0" />
-                            <span>No claimant details provided</span>
-                          </div>
-                        )}
-                      </>
-                    )}
-                  </div>
-
-                  {/* Pickup & Verification */}
-                  <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg space-y-1.5">
-                    <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">Pickup & Verification</p>
-                    {selectedClaim.pickup_code && (
-                      <div className="flex items-center gap-2 text-sm text-slate-700">
-                        <KeyIcon className="h-4 w-4 text-slate-400 shrink-0" />
-                        <span>Pickup Code: <span className="font-mono font-bold text-slate-900 bg-slate-200 px-1.5 py-0.5 rounded">{selectedClaim.pickup_code}</span></span>
-                      </div>
-                    )}
-                    {selectedClaim.expires_at && (
-                      <div className="flex items-center gap-2 text-sm text-slate-700">
-                        <ClockIcon className="h-4 w-4 text-slate-400 shrink-0" />
-                        <span>Expires: {formatDate(selectedClaim.expires_at)}</span>
-                      </div>
-                    )}
+                {/* Claimant details */}
+                <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg space-y-1.5">
+                  <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">Claimant Details</p>
+                  {selectedClaim.claimant?.full_name && (
                     <div className="flex items-center gap-2 text-sm text-slate-700">
-                      <CreditCardIcon className="h-4 w-4 text-slate-400 shrink-0" />
-                      <span>Payment: <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-semibold ${
-                        selectedClaim.payment_status === 'paid' ? 'bg-green-100 text-green-700' :
-                        selectedClaim.payment_status === 'awaiting_payment' ? 'bg-yellow-100 text-yellow-700' :
-                        selectedClaim.payment_status === 'refunded' ? 'bg-amber-100 text-amber-700' :
-                        'bg-slate-100 text-slate-700'
-                      }`}>{selectedClaim.payment_status}</span></span>
+                      <UserIcon className="h-4 w-4 text-slate-400 shrink-0" />
+                      <span className="font-medium">{selectedClaim.claimant.full_name}</span>
                     </div>
+                  )}
+                  {selectedClaim.claimant?.email && (
+                    <div className="flex items-center gap-2 text-sm text-slate-700">
+                      <EnvelopeIcon className="h-4 w-4 text-slate-400 shrink-0" />
+                      <a href={`mailto:${selectedClaim.claimant.email}`} className="text-blue-600 hover:underline">
+                        {selectedClaim.claimant.email}
+                      </a>
+                    </div>
+                  )}
+                  {selectedClaim.claimant?.phone && (
+                    <div className="flex items-center gap-2 text-sm text-slate-700">
+                      <PhoneIcon className="h-4 w-4 text-slate-400 shrink-0" />
+                      <a href={`tel:${selectedClaim.claimant.phone}`} className="text-blue-600 hover:underline">
+                        {selectedClaim.claimant.phone}
+                      </a>
+                    </div>
+                  )}
+                </div>
+
+                {/* Pickup & Verification */}
+                <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg space-y-1.5">
+                  <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">Pickup & Verification</p>
+                  {selectedClaim.pickup_code && (
+                    <div className="flex items-center gap-2 text-sm text-slate-700">
+                      <KeyIcon className="h-4 w-4 text-slate-400 shrink-0" />
+                      <span>Pickup Code: <span className="font-mono font-bold text-slate-900 bg-slate-200 px-1.5 py-0.5 rounded">{selectedClaim.pickup_code}</span></span>
+                    </div>
+                  )}
+                  {selectedClaim.expires_at && (
+                    <div className="flex items-center gap-2 text-sm text-slate-700">
+                      <ClockIcon className="h-4 w-4 text-slate-400 shrink-0" />
+                      <span>Expires: {formatDate(selectedClaim.expires_at)}</span>
+                    </div>
+                  )}
+                </div>
+
+                {/* Courier / Delivery info — shown when relevant */}
+                {(selectedClaim.collection_mode === 'courier' || selectedClaim.delivery_address || selectedClaim.delivery_tracking_info) && (
+                  <div className="p-3 bg-violet-50 border border-violet-200 rounded-lg space-y-1.5">
+                    <p className="text-xs font-semibold text-violet-600 uppercase tracking-wide mb-1">Delivery Info</p>
+                    {selectedClaim.delivery_address && (
+                      <div className="flex items-start gap-2 text-sm text-slate-700">
+                        <MapPinIcon className="h-4 w-4 text-violet-400 shrink-0 mt-0.5" />
+                        <span>{selectedClaim.delivery_address}</span>
+                      </div>
+                    )}
+                    {selectedClaim.courier_provider && (
+                      <div className="flex items-center gap-2 text-sm text-slate-700">
+                        <TruckIcon className="h-4 w-4 text-violet-400 shrink-0" />
+                        <span className="capitalize">{selectedClaim.courier_provider}</span>
+                        {selectedClaim.delivery_tracking_info?.provider_status && (
+                          <span className="inline-flex px-2 py-0.5 text-[10px] font-semibold rounded-full bg-violet-100 text-violet-700 capitalize">
+                            {selectedClaim.delivery_tracking_info.provider_status}
+                          </span>
+                        )}
+                      </div>
+                    )}
+                    {selectedClaim.delivery_tracking_info?.tracking_url && (
+                      <a
+                        href={selectedClaim.delivery_tracking_info.tracking_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1 text-xs text-violet-600 hover:underline font-medium"
+                      >
+                        Track shipment <ArrowTopRightOnSquareIcon className="h-3 w-3" />
+                      </a>
+                    )}
                   </div>
+                )}
 
-                  {/* Item description */}
-                  {selectedClaim.item?.description && (
-                    <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg">
-                      <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">Item Description</p>
-                      <p className="text-sm text-slate-700 leading-relaxed">{selectedClaim.item.description}</p>
-                    </div>
-                  )}
+                {/* Item description */}
+                {selectedClaim.item?.description && (
+                  <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg">
+                    <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">Item Description</p>
+                    <p className="text-sm text-slate-700 leading-relaxed">{selectedClaim.item.description}</p>
+                  </div>
+                )}
 
-                  {/* Customer's description */}
-                  {selectedClaim.search_description && (
-                    <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg">
-                      <p className="text-xs font-semibold text-amber-700 uppercase tracking-wide mb-1">Customer&apos;s Description</p>
-                      <p className="text-sm text-amber-900 leading-relaxed">{selectedClaim.search_description}</p>
-                    </div>
-                  )}
-                  {selectedClaim.notes && !selectedClaim.search_description && (
-                    <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg">
-                      <p className="text-xs font-semibold text-amber-700 uppercase tracking-wide mb-1">Notes</p>
-                      <p className="text-sm text-amber-900 leading-relaxed italic">&quot;{selectedClaim.notes}&quot;</p>
-                    </div>
-                  )}
+                {/* Customer's search description */}
+                {selectedClaim.search_description && (
+                  <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                    <p className="text-xs font-semibold text-amber-700 uppercase tracking-wide mb-1">Customer&apos;s Description</p>
+                    <p className="text-sm text-amber-900 leading-relaxed">{selectedClaim.search_description}</p>
+                  </div>
+                )}
+                {selectedClaim.notes && !selectedClaim.search_description && (
+                  <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                    <p className="text-xs font-semibold text-amber-700 uppercase tracking-wide mb-1">Notes</p>
+                    <p className="text-sm text-amber-900 leading-relaxed italic">&quot;{selectedClaim.notes}&quot;</p>
+                  </div>
+                )}
+
+                {/* Rejection reason — info only */}
+                {selectedClaim.decision_reason && selectedClaim.status === 'rejected' && (
+                  <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
+                    <p className="text-xs font-semibold text-red-600 uppercase tracking-wide mb-1">Rejection Reason</p>
+                    <p className="text-sm text-red-800 leading-relaxed">{selectedClaim.decision_reason}</p>
+                  </div>
+                )}
+              </div>
+
+              {/* Modal Actions */}
+              <div className="mt-6 space-y-3">
+                {selectedClaim.workflow_state === 'pending_review' && (
+                  <div className="flex gap-3">
+                    <button
+                      onClick={() => requestApproval(selectedClaim.id, selectedClaim.item?.title || 'this item')}
+                      disabled={isLoading}
+                      className="flex-1 inline-flex justify-center items-center px-4 py-2.5 text-sm font-medium rounded-lg text-white bg-green-600 hover:bg-green-700 disabled:opacity-50 transition-colors"
+                    >
+                      <CheckIcon className="w-4 h-4 mr-1.5" /> Approve
+                    </button>
+                    <button
+                      onClick={() => requestRejection(selectedClaim.id, selectedClaim.item?.title || 'this item')}
+                      disabled={isLoading}
+                      className="flex-1 inline-flex justify-center items-center px-4 py-2.5 text-sm font-medium rounded-lg text-white bg-red-600 hover:bg-red-700 disabled:opacity-50 transition-colors"
+                    >
+                      <XMarkIcon className="w-4 h-4 mr-1.5" /> Reject
+                    </button>
+                  </div>
+                )}
+
+                {(selectedClaim.workflow_state === 'approved_ready_for_pickup' || selectedClaim.workflow_state === 'approved_courier_arranged') && (
+                  <button
+                    onClick={() => requestCollection(selectedClaim.id, selectedClaim.item?.title || 'this item')}
+                    disabled={isLoading}
+                    className="w-full inline-flex justify-center items-center px-4 py-2.5 text-sm font-medium rounded-lg text-white bg-slate-900 hover:bg-slate-800 disabled:opacity-50 transition-colors"
+                  >
+                    <CheckIcon className="w-4 h-4 mr-1.5" />
+                    {selectedClaim.workflow_state === 'approved_courier_arranged' ? 'Confirm Delivery' : 'Mark as Collected'}
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+        , document.body)}
+
+        {/* ─── Confirmation Modal ───────────────────────────────────────── */}
+        {confirmAction && createPortal(
+          <div
+            className="fixed inset-0 bg-black/50 flex items-center justify-center z-[70] p-4"
+            onClick={(e) => { if (e.target === e.currentTarget) { setConfirmAction(null); setRejectionReason(''); } }}
+          >
+            <div
+              role="dialog"
+              aria-modal="true"
+              className="relative mx-auto p-6 w-full max-w-md shadow-xl rounded-xl bg-white"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-start gap-3 mb-4">
+                <div className={`p-2 rounded-full shrink-0 ${
+                  confirmAction.type === 'approve' ? 'bg-green-100' :
+                  confirmAction.type === 'collect' ? 'bg-slate-100' :
+                  'bg-red-100'
+                }`}>
+                  <ExclamationTriangleIcon className={`h-5 w-5 ${
+                    confirmAction.type === 'approve' ? 'text-green-600' :
+                    confirmAction.type === 'collect' ? 'text-slate-700' :
+                    'text-red-600'
+                  }`} />
+                </div>
+                <div>
+                  <h4 className="text-base font-semibold text-slate-900">
+                    {confirmAction.type === 'approve' ? 'Approve this claim?' :
+                     confirmAction.type === 'collect' ? 'Confirm collection?' :
+                     'Reject this claim?'}
+                  </h4>
+                  <p className="text-sm text-slate-500 mt-1">
+                    {confirmAction.type === 'approve' && (
+                      <>You are about to approve the claim for <strong>{confirmAction.itemTitle}</strong>. The customer will be notified.</>
+                    )}
+                    {confirmAction.type === 'collect' && (
+                      <>Mark <strong>{confirmAction.itemTitle}</strong> as collected? This will close the claim and release the item.</>
+                    )}
+                    {confirmAction.type === 'reject' && (
+                      <>Please provide a reason for rejecting the claim for <strong>{confirmAction.itemTitle}</strong>.</>
+                    )}
+                  </p>
                 </div>
               </div>
 
-              {/* Sticky footer actions */}
-              {(selectedClaim.status === 'pending' || (selectedClaim.status === 'approved' && !selectedClaim.closed_at && selectedClaim.item?.status !== 'released')) && (
-                <div className="px-5 py-4 border-t border-slate-100 shrink-0">
-                  {selectedClaim.status === 'pending' && (
-                    <div className="flex gap-3">
-                      <button
-                        onClick={() => requestApproval(selectedClaim.id, selectedClaim.item?.title || 'this item')}
-                        disabled={isLoading}
-                        className="flex-1 inline-flex justify-center items-center px-4 py-2.5 text-sm font-medium rounded-lg text-white bg-green-600 hover:bg-green-700 disabled:opacity-50 transition-colors"
-                      >
-                        <CheckIcon className="w-4 h-4 mr-1.5" /> Approve
-                      </button>
-                      <button
-                        onClick={() => requestRejection(selectedClaim.id, selectedClaim.item?.title || 'this item')}
-                        disabled={isLoading}
-                        className="flex-1 inline-flex justify-center items-center px-4 py-2.5 text-sm font-medium rounded-lg text-white bg-red-600 hover:bg-red-700 disabled:opacity-50 transition-colors"
-                      >
-                        <XMarkIcon className="w-4 h-4 mr-1.5" /> Reject
-                      </button>
-                    </div>
-                  )}
-                  {selectedClaim.status === 'approved' && !selectedClaim.closed_at && selectedClaim.item?.status !== 'released' && (
-                    <button
-                      onClick={() => handleMarkCollected(selectedClaim.id)}
-                      disabled={collectingClaimId === selectedClaim.id}
-                      className="w-full inline-flex justify-center items-center gap-2 px-4 py-2.5 text-sm font-medium rounded-lg text-white bg-green-600 hover:bg-green-700 disabled:opacity-50 transition-colors"
-                    >
-                      <CheckBadgeIcon className="w-4 h-4" />
-                      {collectingClaimId === selectedClaim.id ? 'Marking…' : 'Mark as Released'}
-                    </button>
-                  )}
+              {/* Rejection reason text box */}
+              {confirmAction.type === 'reject' && (
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-slate-700 mb-1">
+                    Reason for rejection <span className="text-red-500">*</span>
+                  </label>
+                  <textarea
+                    value={rejectionReason}
+                    onChange={(e) => setRejectionReason(e.target.value)}
+                    placeholder="e.g., Description does not match the item, insufficient proof of ownership..."
+                    rows={3}
+                    className="block w-full px-3 py-2 border border-slate-300 rounded-lg shadow-sm placeholder-slate-400 focus:outline-none focus:ring-slate-500 focus:border-slate-500 text-sm"
+                    autoFocus
+                  />
                 </div>
               )}
+
+              <div className="flex justify-end gap-3">
+                <button
+                  onClick={() => { setConfirmAction(null); setRejectionReason(''); }}
+                  className="px-4 py-2 text-sm font-medium text-slate-700 bg-slate-100 rounded-lg hover:bg-slate-200 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={executeConfirmAction}
+                  disabled={confirmAction.type === 'reject' && !rejectionReason.trim()}
+                  className={`px-4 py-2 text-sm font-medium text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
+                    confirmAction.type === 'approve' ? 'bg-green-600 hover:bg-green-700' :
+                    confirmAction.type === 'collect' ? 'bg-slate-900 hover:bg-slate-800' :
+                    'bg-red-600 hover:bg-red-700'
+                  }`}
+                >
+                  {confirmAction.type === 'approve' ? 'Yes, Approve' :
+                   confirmAction.type === 'collect' ? 'Yes, Confirm' :
+                   'Reject Claim'}
+                </button>
+              </div>
+            </div>
+          </div>
+        , document.body)}
+
+        {/* Lightbox */}
+        {lightboxImage && createPortal(
+          <div
+            className="fixed inset-0 bg-black bg-opacity-90 z-[80] flex items-center justify-center"
+            onClick={() => setLightboxImage(null)}
+          >
+            <button
+              className="absolute top-4 right-4 z-10 text-white hover:text-gray-300"
+              onClick={() => setLightboxImage(null)}
+            >
+              <XMarkIcon className="h-8 w-8" />
+            </button>
+            <div className="relative w-full h-full" onClick={e => e.stopPropagation()}>
+              <Image src={lightboxImage} alt="Full size" fill sizes="100vw" className="object-contain rounded" />
             </div>
           </div>
         , document.body)}
       </div>
-
-      {/* ─── Confirmation Modal ───────────────────────────────────────── */}
-      {confirmAction && createPortal(
-        <div
-          className="fixed inset-0 bg-black/50 flex items-center justify-center z-[70] p-4"
-          onClick={(e) => { if (e.target === e.currentTarget) { setConfirmAction(null); setRejectionReason(''); } }}
-        >
-          <div
-            role="dialog"
-            aria-modal="true"
-            className="relative mx-auto p-6 w-full max-w-md shadow-xl rounded-xl bg-white"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-start gap-3 mb-4">
-              <div className={`p-2 rounded-full shrink-0 ${
-                confirmAction.type === 'approve' ? 'bg-green-100' : 'bg-red-100'
-              }`}>
-                <ExclamationTriangleIcon className={`h-5 w-5 ${
-                  confirmAction.type === 'approve' ? 'text-green-600' : 'text-red-600'
-                }`} />
-              </div>
-              <div>
-                <h4 className="text-base font-semibold text-slate-900">
-                  {confirmAction.type === 'approve' ? 'Approve this claim?' : 'Reject this claim?'}
-                </h4>
-                <p className="text-sm text-slate-500 mt-1">
-                  {confirmAction.type === 'approve' ? (
-                    <>You are about to approve the claim for <strong>{confirmAction.itemTitle}</strong>. The customer will be notified.</>
-                  ) : (
-                    <>Please provide a reason for rejecting the claim for <strong>{confirmAction.itemTitle}</strong>.</>
-                  )}
-                </p>
-              </div>
-            </div>
-
-            {/* Rejection reason text box */}
-            {confirmAction.type === 'reject' && (
-              <div className="mb-4">
-                <label className="block text-sm font-medium text-slate-700 mb-1">
-                  Reason for rejection <span className="text-red-500">*</span>
-                </label>
-                <textarea
-                  value={rejectionReason}
-                  onChange={(e) => setRejectionReason(e.target.value)}
-                  placeholder="e.g., Description does not match the item, insufficient proof of ownership..."
-                  rows={3}
-                  className="block w-full px-3 py-2 border border-slate-300 rounded-lg shadow-sm placeholder-slate-400 focus:outline-none focus:ring-slate-500 focus:border-slate-500 text-sm"
-                  autoFocus
-                />
-              </div>
-            )}
-
-            <div className="flex justify-end gap-3">
-              <button
-                onClick={() => { setConfirmAction(null); setRejectionReason(''); }}
-                className="px-4 py-2 text-sm font-medium text-slate-700 bg-slate-100 rounded-lg hover:bg-slate-200 transition-colors"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={executeConfirmAction}
-                disabled={confirmAction.type === 'reject' && !rejectionReason.trim()}
-                className={`px-4 py-2 text-sm font-medium text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
-                  confirmAction.type === 'approve' ? 'bg-green-600 hover:bg-green-700' : 'bg-red-600 hover:bg-red-700'
-                }`}
-              >
-                {confirmAction.type === 'approve' ? 'Yes, Approve' : 'Reject Claim'}
-              </button>
-            </div>
-          </div>
-        </div>
-      , document.body)}
-
-      {/* Lightbox */}
-      {lightboxImage && createPortal(
-        <div
-          className="fixed inset-0 bg-black bg-opacity-90 z-[80] flex items-center justify-center"
-          onClick={() => setLightboxImage(null)}
-        >
-          <button
-            className="absolute top-4 right-4 z-10 text-white hover:text-gray-300"
-            onClick={() => setLightboxImage(null)}
-          >
-            <XMarkIcon className="h-8 w-8" />
-          </button>
-          <div className="relative w-full h-full" onClick={e => e.stopPropagation()}>
-            <Image src={lightboxImage} alt="Full size" fill sizes="100vw" className="object-contain rounded" />
-          </div>
-        </div>
-      , document.body)}
     </Layout>
   );
 }

@@ -107,6 +107,7 @@ export interface Claim {
   claimant_id?: string;
   claimant?: ClaimantSummary;
   status: ClaimStatus;
+  workflow_state?: WorkflowState;
   payment_status: PaymentStatus;
   active_transaction_id?: string;
   pickup_code: string;
@@ -117,6 +118,7 @@ export interface Claim {
   notes?: string;
   query_id?: string;
   search_description?: string;
+  decision_reason?: string;
   verification_questions?: Record<string, unknown>;
   verification_answers?: Record<string, unknown>;
   decided_at?: string;
@@ -135,6 +137,17 @@ export type ClaimStatus =
   | 'approved'
   | 'rejected'
   | 'expired';
+
+export type WorkflowState =
+  | 'pending_review'
+  | 'pending_cancelled'
+  | 'approved_awaiting_payment'
+  | 'approved_ready_for_pickup'
+  | 'approved_courier_arranged'
+  | 'approved_collected'
+  | 'approved_cancelled'
+  | 'approved_expired'
+  | 'rejected';
 
 export type PaymentStatus =
   | 'not_required'

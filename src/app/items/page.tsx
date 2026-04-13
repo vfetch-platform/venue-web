@@ -11,7 +11,6 @@ import { ITEM_CATEGORIES } from '@/constants/items';
 import {
   MagnifyingGlassIcon,
   PlusIcon,
-  EyeIcon,
   PencilIcon,
   TrashIcon,
   ArrowDownTrayIcon,
@@ -75,9 +74,7 @@ export default function ItemsPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('');
   const [selectedStatus, setSelectedStatus] = useState<ItemStatus | ''>('');
-  const [viewingItem, setViewingItem] = useState<Item | null>(null);
   const [editingItem, setEditingItem] = useState<Item | null>(null);
-  const [modalMode, setModalMode] = useState<'view' | 'edit'>('view');
   const [isLoading, setIsLoading] = useState(false);
 
   // Item-claims drawer
@@ -195,16 +192,8 @@ export default function ItemsPage() {
     }
   };
 
-  const handleViewItem = (item: Item) => {
-    setViewingItem(item);
-    setModalMode('view');
-    setEditingItem(null);
-  };
-
   const handleEditItem = (item: Item) => {
     setEditingItem(item);
-    setModalMode('edit');
-    setViewingItem(null);
   };
 
   const handleSaveItem = async (updatedItem: Item) => {
@@ -225,7 +214,6 @@ export default function ItemsPage() {
 
   const handleCloseModal = () => {
     setEditingItem(null);
-    setViewingItem(null);
   };
 
   const openClaimsDrawer = async (item: Item) => {
@@ -484,7 +472,6 @@ export default function ItemsPage() {
                       </span>
                     </div>
                     <div className="flex gap-2 pt-1">
-                      <button onClick={() => handleViewItem(item)} className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded" title="View"><EyeIcon className="h-4 w-4" /></button>
                       <button onClick={() => handleEditItem(item)} className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded" title="Edit"><PencilIcon className="h-4 w-4" /></button>
                       <button onClick={() => handleDeleteItem(item.id)} className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded" title="Delete"><TrashIcon className="h-4 w-4" /></button>
                       {item.claim_count > 0 && (
@@ -557,7 +544,6 @@ export default function ItemsPage() {
                         </td>
                         <td className="px-6 py-4">
                           <div className="flex items-center gap-1">
-                            <button onClick={() => handleViewItem(item)} className="p-1.5 text-slate-400 hover:text-slate-900 hover:bg-slate-50 rounded transition-colors" title="View"><EyeIcon className="h-4 w-4" /></button>
                             <button onClick={() => handleEditItem(item)} className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded transition-colors" title="Edit"><PencilIcon className="h-4 w-4" /></button>
                             <button onClick={() => handleDeleteItem(item.id)} className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded transition-colors" title="Delete"><TrashIcon className="h-4 w-4" /></button>
                           </div>
@@ -619,11 +605,11 @@ export default function ItemsPage() {
           )}
         </div>
 
-        {/* Item View/Edit Modal */}
+        {/* Item Edit Modal */}
         <ItemModal
-          item={modalMode === 'view' ? viewingItem : editingItem}
-          isOpen={modalMode === 'view' ? !!viewingItem : !!editingItem}
-          mode={modalMode}
+          item={editingItem}
+          isOpen={!!editingItem}
+          mode="edit"
           onClose={handleCloseModal}
           onSave={handleSaveItem}
         />
