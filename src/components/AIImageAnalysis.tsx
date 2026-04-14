@@ -274,7 +274,7 @@ export default function AIImageAnalysis({ onDescriptionGenerated, onImagesSelect
               Use camera
             </button>
           </div>
-          <p className="mt-3 text-xs text-blue-600">Add up to 2 images from different angles — AI analyzes both in one pass for a richer description</p>
+          <p className="mt-3 text-xs text-slate-600">Add up to 2 images from different angles — AI analyzes both in one pass for a richer description</p>
         </div>
       </div>
 
