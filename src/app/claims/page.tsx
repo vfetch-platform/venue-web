@@ -27,6 +27,7 @@ import {
   TruckIcon,
   MapPinIcon,
   ArrowTopRightOnSquareIcon,
+  MagnifyingGlassIcon,
 } from '@heroicons/react/24/outline';
 import { cardStyles } from '@/utils/styles';
 
@@ -35,6 +36,7 @@ export default function ClaimsPage() {
   const { venue } = useAuthStore();
   const [claims, setClaims] = useState<Claim[]>([]);
   const [selectedWorkflowCards, setSelectedWorkflowCards] = useState<Set<string>>(new Set());
+  const [searchQuery, setSearchQuery] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [selectedClaim, setSelectedClaim] = useState<Claim | null>(null);
@@ -103,8 +105,14 @@ export default function ClaimsPage() {
   };
 
   const filteredClaims = claims.filter(claim => {
-    if (selectedWorkflowCards.size === 0) return true;
-    return selectedWorkflowCards.has(getClaimCardKey(claim));
+    const matchesWorkflow = selectedWorkflowCards.size === 0 || selectedWorkflowCards.has(getClaimCardKey(claim));
+    const q = searchQuery.trim().toLowerCase();
+    const matchesSearch = q === '' ||
+      claim.item?.title?.toLowerCase().includes(q) ||
+      claim.claimant?.full_name?.toLowerCase().includes(q) ||
+      claim.claimant?.email?.toLowerCase().includes(q) ||
+      claim.id.toLowerCase().includes(q);
+    return matchesWorkflow && matchesSearch;
   });
 
   const workflowPriority = (state?: WorkflowState): number => {
@@ -290,6 +298,18 @@ export default function ClaimsPage() {
               );
             })}
           </div>
+        </div>
+
+        {/* Search bar */}
+        <div className="relative max-w-sm">
+          <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+          <input
+            type="text"
+            placeholder="Search by item, claimant, email or claim ID…"
+            className="w-full pl-9 pr-4 py-2 text-sm border border-slate-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-slate-500 focus:border-slate-300"
+            value={searchQuery}
+            onChange={(e) => { setSearchQuery(e.target.value); setCurrentPage(1); }}
+          />
         </div>
 
         {/* Claims List */}
