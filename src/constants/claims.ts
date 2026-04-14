@@ -52,7 +52,7 @@ export const WORKFLOW_STATE_CONFIGS: WorkflowStateConfig[] = [
   },
   {
     state: 'closed',
-    matches: ['approved_collected', 'approved_cancelled', 'approved_expired', 'pending_cancelled', 'approved_awaiting_payment', 'approved_courier_arranged'],
+    matches: ['approved_collected', 'approved_cancelled', 'approved_expired', 'pending_cancelled'],
     label: 'Closed',
     description: 'Resolved or expired',
     cardAccent: 'text-slate-500 border-slate-300',
