@@ -29,7 +29,7 @@ export const WORKFLOW_STATE_CONFIGS: WorkflowStateConfig[] = [
   {
     state: 'pending_review',
     matches: ['pending_review'],
-    label: 'Needs Review',
+    label: 'Pending',
     description: 'Awaiting your decision',
     cardAccent: 'text-yellow-600 border-yellow-300',
     tagClasses: 'bg-yellow-100 text-yellow-800 border border-yellow-300',

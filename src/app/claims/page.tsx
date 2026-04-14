@@ -220,6 +220,19 @@ export default function ClaimsPage() {
     setCurrentPage(1);
   };
 
+  const isTerminalWorkflowState = (state?: WorkflowState): boolean => (
+    state === 'rejected' ||
+    state === 'approved_collected' ||
+    state === 'approved_cancelled' ||
+    state === 'approved_expired' ||
+    state === 'pending_cancelled'
+  );
+
+  const activeRowActionButtonClasses = 'inline-flex min-w-[148px] items-center justify-center px-3 sm:px-4 py-2 text-xs sm:text-sm font-medium rounded-lg text-white bg-slate-900 hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-500 focus:ring-offset-1 shadow-sm transition-colors';
+  const passiveRowActionButtonClasses = 'inline-flex min-w-[148px] items-center justify-center px-3 sm:px-4 py-2 text-xs sm:text-sm font-medium rounded-lg text-slate-900 bg-white border border-slate-300 hover:bg-slate-50 hover:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-500 focus:ring-offset-1 transition-colors';
+  const terminalRowActionButtonClasses = 'inline-flex min-w-[148px] items-center justify-center px-3 sm:px-4 py-2 text-xs sm:text-sm font-medium rounded-lg text-slate-500 bg-white border border-slate-300 hover:bg-slate-100 hover:text-slate-600 hover:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-400 focus:ring-offset-1 transition-colors';
+  const terminalTagClasses = 'bg-slate-100 text-slate-500 border border-slate-300';
+
   /** Count claims that map to a given WorkflowStateConfig card. */
   const countForCard = (config: WorkflowStateConfig): number => {
     return claims.filter(c => config.matches.includes(c.workflow_state as WorkflowState)).length;
@@ -322,29 +335,46 @@ export default function ClaimsPage() {
                   const wfConfig = getWorkflowStateConfig(claim.workflow_state);
                   const paymentTag = claim.payment_status ? PAYMENT_STATUS_TAGS[claim.payment_status] : null;
                   const collectionTag = claim.collection_mode ? COLLECTION_MODE_TAGS[claim.collection_mode] : null;
+                  const isTerminalClaim = isTerminalWorkflowState(claim.workflow_state);
+                  const rowClasses = isTerminalClaim
+                    ? 'flex items-center gap-3 sm:gap-5 p-3 sm:p-4 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 hover:border-slate-300 transition-all duration-200'
+                    : 'flex items-center gap-3 sm:gap-5 p-3 sm:p-4 rounded-xl border border-slate-200 bg-white hover:shadow-md hover:border-slate-300 transition-all duration-200';
+                  const titleClasses = isTerminalClaim
+                    ? 'text-sm sm:text-base font-semibold text-slate-700 truncate'
+                    : 'text-sm sm:text-base font-semibold text-slate-900 truncate';
+                  const metaTextClasses = isTerminalClaim ? 'text-xs text-slate-400' : 'text-xs text-slate-500';
+                  const workflowTagClasses = isTerminalClaim ? terminalTagClasses : wfConfig.tagClasses;
+                  const passiveButtonClasses = isTerminalClaim ? terminalRowActionButtonClasses : passiveRowActionButtonClasses;
 
                   return (
                     <div
                       key={claim.id}
-                      className="flex items-center gap-3 sm:gap-5 p-3 sm:p-4 rounded-xl border border-slate-200 bg-white hover:shadow-md hover:border-slate-300 transition-all duration-200"
+                      className={rowClasses}
                     >
                       {/* Thumbnail */}
                       <div className="relative w-14 h-14 sm:w-20 sm:h-20 rounded-xl overflow-hidden bg-slate-100 shrink-0">
                         {firstImage ? (
-                          <Image src={firstImage} alt={claim.item?.title || 'Item'} fill sizes="80px" quality={60} className="object-cover" />
+                          <Image
+                            src={firstImage}
+                            alt={claim.item?.title || 'Item'}
+                            fill
+                            sizes="80px"
+                            quality={60}
+                            className={isTerminalClaim ? 'object-cover opacity-70' : 'object-cover'}
+                          />
                         ) : (
-                          <div className="w-full h-full flex items-center justify-center text-slate-300 text-xs">No image</div>
+                          <div className={`w-full h-full flex items-center justify-center text-xs ${isTerminalClaim ? 'text-slate-400' : 'text-slate-300'}`}>No image</div>
                         )}
                       </div>
 
                       {/* Info */}
                       <div className="flex-1 min-w-0 space-y-1">
-                        <p className="text-sm sm:text-base font-semibold text-slate-900 truncate">
+                        <p className={titleClasses}>
                           {claim.item?.title || 'Unknown Item'}
                         </p>
                         <div className="flex items-center gap-1.5 flex-wrap">
                           {/* Workflow state tag */}
-                          <span className={`inline-flex px-2 py-0.5 text-xs font-semibold rounded-full ${wfConfig.tagClasses}`}>
+                          <span className={`inline-flex px-2 py-0.5 text-xs font-semibold rounded-full ${workflowTagClasses}`}>
                             {wfConfig.label}
                           </span>
                           {/* Payment status tag — only when actionable */}
@@ -353,44 +383,62 @@ export default function ClaimsPage() {
                             claim.workflow_state !== 'approved_awaiting_payment' &&
                             claim.workflow_state !== 'approved_ready_for_pickup' &&
                             claim.workflow_state !== 'approved_courier_arranged' && (
-                            <span className={`inline-flex px-2 py-0.5 text-xs font-semibold rounded-full ${paymentTag.classes}`}>
+                            <span className={`inline-flex px-2 py-0.5 text-xs font-semibold rounded-full ${isTerminalClaim ? terminalTagClasses : paymentTag.classes}`}>
                               {paymentTag.label}
                             </span>
                           )}
                           {/* Collection mode tag — hide self_pickup when workflow already says Ready for Pickup */}
                           {collectionTag &&
                             !(claim.collection_mode === 'self_pickup' && claim.workflow_state === 'approved_ready_for_pickup') && (
-                            <span className={`inline-flex px-2 py-0.5 text-xs font-semibold rounded-full ${collectionTag.classes}`}>
+                            <span className={`inline-flex px-2 py-0.5 text-xs font-semibold rounded-full ${isTerminalClaim ? terminalTagClasses : collectionTag.classes}`}>
                               {collectionTag.label}
                             </span>
                           )}
                           {/* Claimant name */}
                           {claim.claimant?.full_name && (
-                            <span className="text-xs text-slate-500 flex items-center gap-1">
+                            <span className={`${metaTextClasses} flex items-center gap-1`}>
                               <UserIcon className="h-3 w-3" />
                               {claim.claimant.full_name}
                             </span>
                           )}
                         </div>
-                        <div className="text-xs text-slate-500">{formatDate(claim.created_at)}</div>
+                        <div className={metaTextClasses}>{formatDate(claim.created_at)}</div>
                       </div>
 
                       {/* Actions */}
-                      <div className="shrink-0 flex flex-col gap-2">
-                        <button
-                          onClick={() => setSelectedClaim(claim)}
-                          className="inline-flex items-center px-3 sm:px-4 py-2 text-xs sm:text-sm font-medium rounded-lg text-white bg-slate-900 hover:bg-slate-800 transition-colors"
-                        >
-                          View Details
-                        </button>
-                        {(claim.workflow_state === 'approved_ready_for_pickup' || claim.workflow_state === 'approved_courier_arranged') && (
+                      <div className="shrink-0">
+                        {claim.workflow_state === 'pending_review' && (
                           <button
-                            onClick={() => requestCollection(claim.id, claim.item?.title || 'this item')}
-                            disabled={isLoading}
-                            className="inline-flex items-center justify-center gap-1 px-3 sm:px-4 py-2 text-xs sm:text-sm font-medium rounded-lg text-indigo-700 bg-indigo-50 hover:bg-indigo-100 disabled:opacity-50 transition-colors"
+                            onClick={() => setSelectedClaim(claim)}
+                            className={activeRowActionButtonClasses}
                           >
-                            <CheckBadgeIcon className="h-4 w-4" />
-                            {claim.workflow_state === 'approved_courier_arranged' ? 'Confirm Delivery' : 'Mark Collected'}
+                            Review
+                          </button>
+                        )}
+                        {claim.workflow_state === 'approved_ready_for_pickup' && (
+                          <button
+                            onClick={() => setSelectedClaim(claim)}
+                            className={activeRowActionButtonClasses}
+                          >
+                            Process Pick-Up
+                          </button>
+                        )}
+                        {claim.workflow_state === 'approved_courier_arranged' && (
+                          <button
+                            onClick={() => setSelectedClaim(claim)}
+                            className={activeRowActionButtonClasses}
+                          >
+                            Process Courier
+                          </button>
+                        )}
+                        {claim.workflow_state !== 'pending_review' &&
+                          claim.workflow_state !== 'approved_ready_for_pickup' &&
+                          claim.workflow_state !== 'approved_courier_arranged' && (
+                          <button
+                            onClick={() => setSelectedClaim(claim)}
+                            className={passiveButtonClasses}
+                          >
+                            View Details
                           </button>
                         )}
                       </div>
