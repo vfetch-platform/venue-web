@@ -35,28 +35,12 @@ export const WORKFLOW_STATE_CONFIGS: WorkflowStateConfig[] = [
     tagClasses: 'bg-yellow-100 text-yellow-800 border border-yellow-300',
   },
   {
-    state: 'approved_awaiting_payment',
-    matches: ['approved_awaiting_payment'],
-    label: 'Awaiting Payment',
-    description: 'Customer needs to pay',
-    cardAccent: 'text-amber-600 border-amber-300',
-    tagClasses: 'bg-amber-100 text-amber-800 border border-amber-300',
-  },
-  {
     state: 'approved_ready_for_pickup',
     matches: ['approved_ready_for_pickup'],
     label: 'Ready for Pickup',
     description: 'Customer can collect',
     cardAccent: 'text-blue-600 border-blue-300',
     tagClasses: 'bg-blue-100 text-blue-800 border border-blue-300',
-  },
-  {
-    state: 'approved_courier_arranged',
-    matches: ['approved_courier_arranged'],
-    label: 'Courier Arranged',
-    description: 'Delivery in progress',
-    cardAccent: 'text-purple-600 border-purple-300',
-    tagClasses: 'bg-purple-100 text-purple-800 border border-purple-300',
   },
   {
     state: 'rejected',
@@ -68,7 +52,7 @@ export const WORKFLOW_STATE_CONFIGS: WorkflowStateConfig[] = [
   },
   {
     state: 'closed',
-    matches: ['approved_collected', 'approved_cancelled', 'approved_expired', 'pending_cancelled'],
+    matches: ['approved_collected', 'approved_cancelled', 'approved_expired', 'pending_cancelled', 'approved_awaiting_payment', 'approved_courier_arranged'],
     label: 'Closed',
     description: 'Resolved or expired',
     cardAccent: 'text-slate-500 border-slate-300',
