@@ -50,7 +50,7 @@ export default function ClaimsPage() {
 
   // Pagination
   const [currentPage, setCurrentPage] = useState(1);
-  const claimsPerPage = 10;
+  const claimsPerPage = 5;
 
   useEffect(() => {
     if (venue?.id) {
@@ -255,7 +255,7 @@ export default function ClaimsPage() {
             <h3 className="text-sm font-semibold text-slate-500 uppercase tracking-wide">Filter by stage</h3>
             {selectedWorkflowCards.size > 0 && (
               <button
-                onClick={() => setSelectedWorkflowCards(new Set())}
+                onClick={() => { setSelectedWorkflowCards(new Set()); setCurrentPage(1); }}
                 className="text-xs text-slate-400 hover:text-slate-600 transition-colors"
               >
                 Clear filter
