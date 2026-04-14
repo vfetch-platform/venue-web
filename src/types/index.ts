@@ -98,6 +98,7 @@ export interface DeliveryTrackingInfo {
 export interface ClaimantSummary {
   full_name: string;
   email: string;
+  phone?: string;
 }
 
 export interface Claim {
@@ -118,6 +119,13 @@ export interface Claim {
   notes?: string;
   query_id?: string;
   search_description?: string;
+  venue_interaction_context?: {
+    sub_location?: string;
+    reference_type?: string;
+    reference_value?: string;
+    started_at?: string;
+    ended_at?: string;
+  };
   decision_reason?: string;
   verification_questions?: Record<string, unknown>;
   verification_answers?: Record<string, unknown>;
