@@ -262,8 +262,8 @@ export default function ClaimsPage() {
               </button>
             )}
           </div>
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-            {WORKFLOW_STATE_CONFIGS.map((config) => {
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            {WORKFLOW_STATE_CONFIGS.filter(c => c.showFilter !== false).map((config) => {
               const isSelected = selectedWorkflowCards.has(config.state);
               const count = countForCard(config);
               return (
