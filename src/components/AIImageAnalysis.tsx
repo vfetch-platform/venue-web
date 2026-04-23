@@ -254,12 +254,12 @@ export default function AIImageAnalysis({ onDescriptionGenerated, onImagesSelect
             id="ai-images"
             disabled={selectedImages.length >= AI_MAX_IMAGES}
           />
-          <SparklesIcon className="mx-auto h-12 w-12 text-blue-500" />
+          <SparklesIcon className="mx-auto h-12 w-12 text-slate-600" />
           <p className="mt-2 text-sm text-gray-500">Up to 2 images — PNG, JPG, GIF, HEIC up to 10MB each</p>
           <div className="mt-4 flex items-center justify-center gap-3">
             <label
               htmlFor="ai-images"
-              className={`inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white rounded-lg ${selectedImages.length >= AI_MAX_IMAGES ? 'bg-blue-300 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700 cursor-pointer'}`}
+              className={`inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white rounded-lg ${selectedImages.length >= AI_MAX_IMAGES ? 'bg-slate-300 cursor-not-allowed' : 'bg-slate-900 hover:bg-slate-800 cursor-pointer'}`}
             >
               <PhotoIcon className="h-4 w-4" />
               Upload photos
@@ -274,7 +274,7 @@ export default function AIImageAnalysis({ onDescriptionGenerated, onImagesSelect
               Use camera
             </button>
           </div>
-          <p className="mt-3 text-xs text-blue-600">Add up to 2 images from different angles — AI analyzes both in one pass for a richer description</p>
+          <p className="mt-3 text-xs text-slate-600">Add up to 2 images from different angles — AI analyzes both in one pass for a richer description</p>
         </div>
       </div>
 

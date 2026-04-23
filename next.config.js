@@ -9,7 +9,7 @@ const nextConfig = {
     ],
     // Smaller set of generated sizes — covers thumbnails (48, 96) and modal previews (256, 384)
     imageSizes: [48, 96, 256, 384],
-    deviceSizes: [640, 750, 1080],
+    deviceSizes: [640, 750, 1080, 1200, 1920],
     formats: ['image/webp'],
     minimumCacheTTL: 60 * 60 * 24 * 30, // 30 days
   },

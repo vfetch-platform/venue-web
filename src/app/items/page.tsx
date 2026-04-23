@@ -77,7 +77,6 @@ export default function ItemsPage() {
   const [selectedStatus, setSelectedStatus] = useState<ItemStatus | ''>('');
   const [viewingItem, setViewingItem] = useState<Item | null>(null);
   const [editingItem, setEditingItem] = useState<Item | null>(null);
-  const [modalMode, setModalMode] = useState<'view' | 'edit'>('view');
   const [isLoading, setIsLoading] = useState(false);
 
   // Item-claims drawer
@@ -197,13 +196,11 @@ export default function ItemsPage() {
 
   const handleViewItem = (item: Item) => {
     setViewingItem(item);
-    setModalMode('view');
     setEditingItem(null);
   };
 
   const handleEditItem = (item: Item) => {
     setEditingItem(item);
-    setModalMode('edit');
     setViewingItem(null);
   };
 
@@ -621,9 +618,9 @@ export default function ItemsPage() {
 
         {/* Item View/Edit Modal */}
         <ItemModal
-          item={modalMode === 'view' ? viewingItem : editingItem}
-          isOpen={modalMode === 'view' ? !!viewingItem : !!editingItem}
-          mode={modalMode}
+          item={viewingItem ?? editingItem}
+          isOpen={!!viewingItem || !!editingItem}
+          mode={viewingItem ? 'view' : 'edit'}
           onClose={handleCloseModal}
           onSave={handleSaveItem}
         />

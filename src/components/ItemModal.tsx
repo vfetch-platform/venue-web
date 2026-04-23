@@ -42,7 +42,7 @@ export default function ItemModal({ item, isOpen, mode, onClose, onSave }: ItemM
     if (isOpen) closeButtonRef.current?.focus();
   }, [isOpen]);
 
-  // Sync editData when a new item is opened
+  // Reset edit data whenever a new item is opened or mode switches
   if (editData?.id !== item?.id && item) {
     setEditData(item);
   }
@@ -145,6 +145,12 @@ export default function ItemModal({ item, isOpen, mode, onClose, onSave }: ItemM
             </div>
           )}
 
+          {/* Collection Section (Edit mode when reserved) */}
+          {!isViewMode && item.status === 'reserved' && (
+            <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg">
+              <p className="text-xs text-slate-500">This item has an approved claim. To release it, use the <strong>Claims</strong> page and mark the claim as collected.</p>
+            </div>
+          )}
           {/* Images */}
           {currentData.images && currentData.images.length > 0 && (
             <div>
