@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import { DM_Sans } from 'next/font/google'
 import './globals.css'
 import AuthProvider from '@/components/AuthProvider'
+import { SpeedInsights } from '@vercel/speed-insights/next'
 
 const dmSans = DM_Sans({ subsets: ['latin'], weight: ['300', '400', '500', '600', '700'] })
 
@@ -33,6 +34,7 @@ export default function RootLayout({
       </head>
       <body className={`${dmSans.className} bg-slate-50 min-h-screen`}>
         <AuthProvider>{children}</AuthProvider>
+        <SpeedInsights />
       </body>
     </html>
   )
