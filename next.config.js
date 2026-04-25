@@ -5,7 +5,7 @@ const nextConfig = {
   images: {
     remotePatterns: [
       ...(process.env.NODE_ENV === 'development'
-        ? [{ protocol: 'http' as const, hostname: 'localhost' }]
+        ? [{ protocol: 'http', hostname: 'localhost' }]
         : []),
       { protocol: 'https', hostname: 'images.vfetch.co.uk' },
     ],
