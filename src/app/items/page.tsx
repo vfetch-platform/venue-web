@@ -28,6 +28,7 @@ import {
 } from '@heroicons/react/24/outline';
 import { Dialog, DialogBackdrop, DialogPanel, DialogTitle } from '@headlessui/react';
 import Link from 'next/link';
+import { useToast } from '@/components/Toast';
 import { inputStyles } from '@/utils/styles';
 
 // ── Helpers ─────────────────────────────────────────────────────────
@@ -70,6 +71,7 @@ function downloadCSV(items: Item[], startDate: string, endDate: string) {
 
 
 export default function ItemsPage() {
+  const showToast = useToast();
   const { user, venue, isInitialized, isAuthenticated } = useAuthStore();
   const [items, setItems] = useState<Item[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
@@ -190,7 +192,7 @@ export default function ItemsPage() {
       setDeleteModal(null);
     } catch (error) {
       console.error('Error deleting item:', error);
-      alert('Failed to delete item');
+      showToast('Failed to delete item');
     }
   };
 
@@ -216,7 +218,7 @@ export default function ItemsPage() {
       }
     } catch (error) {
       console.error('Error updating item:', error);
-      alert('Failed to update item');
+      showToast('Failed to update item');
     }
   };
 
@@ -261,7 +263,7 @@ export default function ItemsPage() {
         ));
       }
     } catch {
-      alert('Failed to mark as released');
+      showToast('Failed to mark as released');
     } finally {
       setCollectingClaimId(null);
     }

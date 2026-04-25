@@ -4,7 +4,9 @@ const nextConfig = {
   devIndicators: false,
   images: {
     remotePatterns: [
-      { protocol: 'http', hostname: 'localhost' },
+      ...(process.env.NODE_ENV === 'development'
+        ? [{ protocol: 'http' as const, hostname: 'localhost' }]
+        : []),
       { protocol: 'https', hostname: 'images.vfetch.co.uk' },
     ],
     // Smaller set of generated sizes — covers thumbnails (48, 96) and modal previews (256, 384)
@@ -31,7 +33,7 @@ const withPWA = require('next-pwa')({
   disable: process.env.NODE_ENV === 'development',
   runtimeCaching: [
     {
-      urlPattern: /^https:\/\/api\.vfetch\.com\/.*/i,
+      urlPattern: /^https?:\/\/[^/]+\/api\/.*/i,
       handler: 'NetworkFirst',
       options: {
         cacheName: 'api-cache',
