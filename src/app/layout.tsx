@@ -1,4 +1,4 @@
-import type { Metadata } from 'next'
+import type { Metadata, Viewport } from 'next'
 import { DM_Sans } from 'next/font/google'
 import './globals.css'
 import AuthProvider from '@/components/AuthProvider'
@@ -10,13 +10,18 @@ export const metadata: Metadata = {
   title: 'VFetch Venue Portal',
   description: 'Venue staff portal for managing lost and found items',
   manifest: '/manifest.json',
-  themeColor: '#0ea5e9',
-  viewport: 'width=device-width, initial-scale=1, maximum-scale=1',
   appleWebApp: {
     capable: true,
     statusBarStyle: 'default',
     title: 'VFetch Venue Portal',
   },
+}
+
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 1,
+  themeColor: '#0ea5e9',
 }
 
 export default function RootLayout({

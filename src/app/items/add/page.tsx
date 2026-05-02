@@ -3,7 +3,8 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Layout from '@/components/Layout';
-import AIImageAnalysis from '@/components/AIImageAnalysis';
+import dynamic from 'next/dynamic';
+const AIImageAnalysis = dynamic(() => import('@/components/AIImageAnalysis'), { ssr: false });
 import { CreateItemForm, ItemCategory } from '@/types';
 import { ITEM_CATEGORIES } from '@/constants/items';
 import { ROUTES } from '@/constants/routes';

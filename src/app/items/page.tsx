@@ -3,7 +3,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import Image from 'next/image';
 import Layout from '@/components/Layout';
-import ItemModal from '@/components/ItemModal';
+import dynamic from 'next/dynamic';
+const ItemModal = dynamic(() => import('@/components/ItemModal'), { ssr: false });
 import { useAuthStore } from '@/store/auth';
 import { Item, ItemStatus, Claim } from '@/types';
 import { api } from '@/services/api';
