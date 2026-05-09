@@ -7,6 +7,7 @@ import { Dialog, DialogPanel, DialogTitle } from '@headlessui/react';
 import { buttonStyles, inputStyles } from '@/utils/styles';
 import { api } from '@/services/api';
 import { AI_MAX_RETRIES, AI_MAX_IMAGES } from '@/constants/config';
+import { useToast } from '@/components/Toast';
 
 interface ExtractedFeaturesPayload {
   title?: string;
@@ -36,6 +37,7 @@ interface AIAnalysisResult {
 
 
 export default function AIImageAnalysis({ onDescriptionGenerated, onImagesSelected, onSkipToManual }: AIImageAnalysisProps) {
+  const showToast = useToast();
   const [selectedImages, setSelectedImages] = useState<File[]>([]);
   const [previewUrls, setPreviewUrls] = useState<string[]>([]);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
@@ -113,7 +115,7 @@ export default function AIImageAnalysis({ onDescriptionGenerated, onImagesSelect
     canvas.toBlob(blob => {
       if (!blob) return;
       if (selectedImages.length >= AI_MAX_IMAGES) {
-        alert(`You can upload up to ${AI_MAX_IMAGES} images.`);
+        showToast(`You can upload up to ${AI_MAX_IMAGES} images.`, 'info');
         closeCamera();
         return;
       }
@@ -127,7 +129,7 @@ export default function AIImageAnalysis({ onDescriptionGenerated, onImagesSelect
       setAnalysisResult(null);
       closeCamera();
     }, 'image/jpeg', 0.92);
-  }, [selectedImages, previewUrls, onImagesSelected, closeCamera]);
+  }, [selectedImages, previewUrls, onImagesSelected, closeCamera, showToast]);
 
 
   const handleImageSelection = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -143,13 +145,13 @@ export default function AIImageAnalysis({ onDescriptionGenerated, onImagesSelect
     });
 
     if (validFiles.length !== files.length) {
-      alert('Some files were skipped. Please ensure all files are images under 10MB.');
+      showToast('Some files were skipped. Please ensure all files are images under 10MB.', 'info');
     }
 
     // Merge with existing selections, capped at AI_MAX_IMAGES
     const merged = [...selectedImages, ...validFiles].slice(0, AI_MAX_IMAGES);
     if (selectedImages.length + validFiles.length > AI_MAX_IMAGES) {
-      alert(`You can upload up to ${AI_MAX_IMAGES} images. Only the first ${AI_MAX_IMAGES} have been kept.`);
+      showToast(`You can upload up to ${AI_MAX_IMAGES} images. Only the first ${AI_MAX_IMAGES} have been kept.`, 'info');
     }
 
     setSelectedImages(merged);

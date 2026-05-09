@@ -7,7 +7,6 @@ import Image from 'next/image';
 import { useAuthStore } from '@/store/auth';
 import { ROUTES } from '@/constants/routes';
 import { EnvelopeIcon, LockClosedIcon, EyeIcon, EyeSlashIcon } from '@heroicons/react/24/outline';
-import { InformationCircleIcon } from '@heroicons/react/24/solid';
 import VFLogo from '@/components/VFLogo';
 
 export default function LoginPage() {
@@ -174,24 +173,6 @@ export default function LoginPage() {
               {isLoading ? 'Signing in...' : 'Sign in'}
             </button>
           </form>
-
-          {/* Demo credentials */}
-          <div className="mt-6 rounded-lg bg-slate-50 border border-slate-200 px-4 py-3">
-            <div className="flex items-center gap-1.5 mb-2">
-              <InformationCircleIcon className="h-4 w-4 text-slate-500" />
-              <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Demo Credentials</span>
-            </div>
-            <div className="space-y-1">
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-slate-500">Email:</span>
-                <span className="font-mono text-slate-900 text-xs">testuser@example.com</span>
-              </div>
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-slate-500">Password:</span>
-                <span className="font-mono text-slate-900 text-xs">password123</span>
-              </div>
-            </div>
-          </div>
 
           {/* Footer links */}
           <div className="mt-8 flex items-center justify-center gap-4 text-xs text-slate-400">

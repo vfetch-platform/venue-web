@@ -8,8 +8,10 @@ import { useRouter } from 'next/navigation';
 import { Venue, User } from '@/types';
 import { cardStyles } from '@/utils/styles';
 import { use } from 'react';
+import { useToast } from '@/components/Toast';
 
 export default function ManageVenuePage({ params }: { params: Promise<{ id: string }> }) {
+    const showToast = useToast();
     const router = useRouter();
     const { id } = use(params);
 
@@ -67,7 +69,7 @@ export default function ManageVenuePage({ params }: { params: Promise<{ id: stri
                 setEditMode(false);
             }
         } catch (err: unknown) {
-            alert(err instanceof Error ? err.message : 'Failed to update venue');
+            showToast(err instanceof Error ? err.message : 'Failed to update venue');
         }
     };
 
@@ -78,7 +80,7 @@ export default function ManageVenuePage({ params }: { params: Promise<{ id: stri
                 setVenue(res.data);
             }
         } catch (err: unknown) {
-            alert(err instanceof Error ? err.message : 'Failed to update status');
+            showToast(err instanceof Error ? err.message : 'Failed to update status');
         }
     };
 
@@ -88,7 +90,7 @@ export default function ManageVenuePage({ params }: { params: Promise<{ id: stri
             await api.venues.adminDelete(id);
             router.push(ROUTES.ADMIN_VENUES);
         } catch (err: unknown) {
-            alert(err instanceof Error ? err.message : 'Failed to delete venue. (Cannot delete if there are items or staff)');
+            showToast(err instanceof Error ? err.message : 'Failed to delete venue. (Cannot delete if there are items or staff)');
         }
     };
 
@@ -104,7 +106,7 @@ export default function ManageVenuePage({ params }: { params: Promise<{ id: stri
                 fetchVenueData(); // Refresh staff
             }
         } catch (err: unknown) {
-            alert(err instanceof Error ? err.message : 'Failed to add staff');
+            showToast(err instanceof Error ? err.message : 'Failed to add staff');
         }
     };
 
@@ -114,7 +116,7 @@ export default function ManageVenuePage({ params }: { params: Promise<{ id: stri
             await api.auth.adminDeleteUser(userId);
             setStaff(staff.filter(s => s.id !== userId));
         } catch (err: unknown) {
-            alert(err instanceof Error ? err.message : 'Failed to remove staff');
+            showToast(err instanceof Error ? err.message : 'Failed to remove staff');
         }
     };
 

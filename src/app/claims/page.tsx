@@ -30,9 +30,11 @@ import {
   MagnifyingGlassIcon,
 } from '@heroicons/react/24/outline';
 import { cardStyles } from '@/utils/styles';
+import { useToast } from '@/components/Toast';
 
 
 export default function ClaimsPage() {
+  const showToast = useToast();
   const { venue } = useAuthStore();
   const [claims, setClaims] = useState<Claim[]>([]);
   const [selectedWorkflowCards, setSelectedWorkflowCards] = useState<Set<string>>(new Set());
@@ -173,7 +175,7 @@ export default function ClaimsPage() {
       }
     } catch (error) {
       console.error('Error updating claim:', error);
-      alert(`Failed to ${status} claim`);
+      showToast(`Failed to ${status} claim`);
     } finally {
       setIsLoading(false);
     }
@@ -191,7 +193,7 @@ export default function ClaimsPage() {
       }
     } catch (error) {
       console.error('Error marking collected:', error);
-      alert('Failed to mark claim as collected');
+      showToast('Failed to mark claim as collected');
     } finally {
       setIsLoading(false);
     }
