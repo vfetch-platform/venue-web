@@ -36,7 +36,7 @@ export default function SupportPage() {
     e.preventDefault();
     setLoading(true);
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/support`, {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/support`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(form),
