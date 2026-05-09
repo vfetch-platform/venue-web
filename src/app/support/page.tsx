@@ -35,10 +35,19 @@ export default function SupportPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    // Simulate sending — replace with real API call when ready
-    await new Promise(r => setTimeout(r, 800));
-    setLoading(false);
-    setSubmitted(true);
+    try {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/support`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(form),
+      });
+      if (!res.ok) throw new Error('Failed to send');
+      setSubmitted(true);
+    } catch {
+      alert('Failed to send your message. Please try again or email us directly at info@vfetch.co.uk.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
