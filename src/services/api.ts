@@ -220,6 +220,12 @@ export const api = {
       return apiRequest<ApiResponse<User[]>>(`/venues/${venueId}/staff`);
     },
 
+    getEarnings: async (venueId: string, months = 6) => {
+      return apiRequest<ApiResponse<{
+        months: Array<{ month: string; claim_count: number; gross_pence: number; platform_fee_pence: number; net_pence: number }>;
+      }>>(`/venues/${venueId}/earnings?months=${months}`);
+    },
+
     // Admin endpoints
     adminGetAll: async (params?: Record<string, string | number>) => {
       const queryString = params ? `?${new URLSearchParams(params as Record<string, string>).toString()}` : '';

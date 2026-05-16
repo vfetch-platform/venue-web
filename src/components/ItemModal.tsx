@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import Image from 'next/image';
-import { Item } from '@/types';
+import { Item, PARCEL_TIER_LABELS, ParcelTierKey } from '@/types';
 import {
   XMarkIcon,
   PhotoIcon,
@@ -386,6 +386,43 @@ export default function ItemModal({ item, isOpen, mode, onClose, onSave }: ItemM
             </div>
           )}
         </div>
+
+        {/* Parcel & Shipping */}
+        {(item.parcel_tier || item.ai_dimensions || item.fragility || item.packaging_plan) && (
+          <div className="rounded-lg border border-blue-100 bg-blue-50/50 p-4">
+            <h4 className="text-sm font-semibold text-slate-900 mb-3">Parcel &amp; Shipping</h4>
+            <div className="grid grid-cols-2 gap-3 text-sm">
+              {item.parcel_tier && (
+                <div>
+                  <span className="text-slate-500 text-xs">Confirmed size</span>
+                  <p className="font-medium text-slate-900">
+                    {PARCEL_TIER_LABELS[item.parcel_tier as ParcelTierKey]} ({item.parcel_tier.toUpperCase()})
+                  </p>
+                </div>
+              )}
+              {item.ai_dimensions && (
+                <div>
+                  <span className="text-slate-500 text-xs">AI estimate (upper bound)</span>
+                  <p className="font-medium text-slate-900">
+                    {Math.round(item.ai_dimensions.length_cm)}×{Math.round(item.ai_dimensions.width_cm)}×{Math.round(item.ai_dimensions.height_cm)} cm · ~{item.ai_dimensions.weight_kg.toFixed(1)} kg
+                  </p>
+                </div>
+              )}
+              {item.fragility && (
+                <div>
+                  <span className="text-slate-500 text-xs">Fragility</span>
+                  <p className="font-medium text-slate-900 capitalize">{item.fragility}</p>
+                </div>
+              )}
+              {item.packaging_plan && (
+                <div className="col-span-2">
+                  <span className="text-slate-500 text-xs">Packaging plan</span>
+                  <p className="text-slate-700 italic">{item.packaging_plan}</p>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* Footer */}
         <div className="flex justify-end space-x-3 mt-6 pt-4 border-t">

@@ -42,7 +42,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   const [venueMenuOpen, setVenueMenuOpen] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
-  const [notifications, setNotifications] = useState<{ id: string; title: string; message: string; type: string; is_read: boolean; created_at: string }[]>([]);
+  const [notifications, setNotifications] = useState<{ id: string; title: string; message: string; type: string; is_read: boolean; created_at: string; data?: Record<string, unknown> }[]>([]);
   const [notifLoading, setNotifLoading] = useState(false);
   const venueMenuRef = useRef<HTMLDivElement>(null);
   const notifRef = useRef<HTMLDivElement>(null);
@@ -339,7 +339,13 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                       {!notifLoading && notifications.map(n => (
                         <button
                           key={n.id}
-                          onClick={() => { if (!n.is_read) handleMarkOneRead(n.id); }}
+                          onClick={() => {
+                            if (!n.is_read) handleMarkOneRead(n.id);
+                            if (n.data?.claimId && typeof n.data.claimId === 'string') {
+                              setNotifOpen(false);
+                              router.push(`/claims?id=${n.data.claimId}`);
+                            }
+                          }}
                           className={`w-full text-left px-4 py-3 border-b border-gray-50 hover:bg-gray-50 transition-colors ${
                             !n.is_read ? 'bg-blue-50/50' : ''
                           }`}

@@ -47,6 +47,16 @@ export interface CollectionHours {
 }
 
 // Item types
+export type ParcelTierKey = 'xs' | 's' | 'm' | 'l' | 'xl';
+
+export const PARCEL_TIER_LABELS: Record<ParcelTierKey, string> = {
+  xs: 'Very Small',
+  s: 'Small',
+  m: 'Medium',
+  l: 'Large',
+  xl: 'Extra Large',
+};
+
 export interface Item {
   id: string;
   title: string;
@@ -65,6 +75,12 @@ export interface Item {
   location_found?: string;
   is_verified: boolean;
   claim_count: number;
+  retention_expires_at?: string;
+  parcel_tier?: ParcelTierKey;
+  ai_parcel_tier?: ParcelTierKey;
+  ai_dimensions?: { weight_kg: number; length_cm: number; width_cm: number; height_cm: number };
+  fragility?: 'high' | 'medium' | 'low';
+  packaging_plan?: string;
   venue?: Venue;
   created_at: string;
   updated_at: string;
@@ -111,7 +127,7 @@ export interface Claim {
   workflow_state?: WorkflowState;
   payment_status: PaymentStatus;
   active_transaction_id?: string;
-  pickup_code: string;
+  pickup_code?: string;
   collection_mode?: 'self_pickup' | 'courier';
   courier_provider?: string;
   delivery_address?: string;

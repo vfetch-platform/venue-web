@@ -520,6 +520,7 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [auditLoading, setAuditLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [earningsMonths, setEarningsMonths] = useState<Array<{ month: string; claim_count: number; gross_pence: number; platform_fee_pence: number; net_pence: number }>>([]);
 
   const isAdmin = user?.role === 'venue_admin' || user?.role === 'admin';
 
@@ -556,7 +557,7 @@ export default function DashboardPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [venue?.id]);
 
-  // Fetch audit entries + staff names for Recent Activity (admin only)
+  // Fetch audit entries + staff names + earnings for admins
   useEffect(() => {
     if (!isAdmin || !venue?.id) { setAuditLoading(false); return; }
 
@@ -564,9 +565,10 @@ export default function DashboardPage() {
     async function fetchAuditAndStaff() {
       setAuditLoading(true);
       try {
-        const [auditRes, staffRes] = await Promise.all([
+        const [auditRes, staffRes, earningsRes] = await Promise.all([
           api.audit.getAll(200),
           api.venues.getStaff(venue!.id),
+          api.venues.getEarnings(venue!.id, 6),
         ]);
         if (cancelled) return;
 
@@ -585,6 +587,9 @@ export default function DashboardPage() {
             map.set(user.id, myName);
           }
           setStaffMap(map);
+        }
+        if (earningsRes.success && earningsRes.data?.months) {
+          setEarningsMonths(earningsRes.data.months);
         }
       } catch {
         // non-critical, activity section will show empty
@@ -687,6 +692,48 @@ export default function DashboardPage() {
             </div>
           </div>
         </div>
+
+        {/* Earnings (admin only) */}
+        {isAdmin && earningsMonths.length > 0 && (
+          <div className={cardStyles}>
+            <div className="p-5 border-b border-slate-100">
+              <h3 className="text-lg font-medium text-slate-900">Monthly Earnings</h3>
+              <p className="text-xs text-slate-400 mt-0.5">Net revenue after platform fee — last 6 months</p>
+            </div>
+            <div className="p-5 overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="text-xs text-slate-500 uppercase">
+                    <th className="text-left pb-2">Month</th>
+                    <th className="text-right pb-2">Claims</th>
+                    <th className="text-right pb-2">Gross</th>
+                    <th className="text-right pb-2">Platform fee</th>
+                    <th className="text-right pb-2 font-semibold text-slate-700">Net</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-50">
+                  {earningsMonths.map(row => (
+                    <tr key={row.month} className="hover:bg-slate-50/50">
+                      <td className="py-2 text-slate-700">{row.month}</td>
+                      <td className="py-2 text-right text-slate-500">{row.claim_count}</td>
+                      <td className="py-2 text-right text-slate-500">£{(row.gross_pence / 100).toFixed(2)}</td>
+                      <td className="py-2 text-right text-slate-500">−£{(row.platform_fee_pence / 100).toFixed(2)}</td>
+                      <td className="py-2 text-right font-semibold text-slate-900">£{(row.net_pence / 100).toFixed(2)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+                <tfoot>
+                  <tr className="border-t border-slate-200">
+                    <td className="pt-2 text-xs font-medium text-slate-500" colSpan={4}>Total net (6 mo)</td>
+                    <td className="pt-2 text-right font-bold text-slate-900">
+                      £{(earningsMonths.reduce((s, r) => s + r.net_pence, 0) / 100).toFixed(2)}
+                    </td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+          </div>
+        )}
 
         {/* Recent Activity */}
         {isAdmin && (

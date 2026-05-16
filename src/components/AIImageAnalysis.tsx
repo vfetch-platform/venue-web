@@ -50,6 +50,13 @@ const TIER_LABELS: Record<ParcelTier, string> = {
   l: 'Large',
   xl: 'Extra Large',
 };
+const TIER_EXAMPLES: Record<ParcelTier, string> = {
+  xs: 'phone, wallet, keys',
+  s: 'shoebox, small handbag',
+  m: 'large handbag, board game',
+  l: 'backpack, laptop bag',
+  xl: 'large suitcase, winter coat',
+};
 const TIER_KEYS: ParcelTier[] = ['xs', 's', 'm', 'l', 'xl'];
 
 interface AIAnalysisResult {
@@ -538,18 +545,17 @@ export default function AIImageAnalysis({ onDescriptionGenerated, onImagesSelect
               <div className="rounded-lg border border-blue-200 bg-blue-50 p-4">
                 <div className="flex items-baseline justify-between mb-2">
                   <h4 className="text-sm font-semibold text-gray-900">
-                    Estimated Size: {reviewData.parcelTier ? TIER_LABELS[reviewData.parcelTier] : '—'}
+                    {reviewData.parcelTier
+                      ? `${TIER_LABELS[reviewData.parcelTier]} parcel — like a ${TIER_EXAMPLES[reviewData.parcelTier]}`
+                      : 'Size not estimated'}
                   </h4>
                   <span className="text-xs text-gray-500">based on photos + standard packaging</span>
                 </div>
                 {reviewData.aiDimensions && (
                   <p className="text-xs text-gray-700 mb-1">
-                    AI estimate (upper-bound, after bubble wrap &amp; box):{' '}
-                    up to {Math.round(reviewData.aiDimensions.length_cm)}×
-                    {Math.round(reviewData.aiDimensions.width_cm)}×
-                    {Math.round(reviewData.aiDimensions.height_cm)} cm,{' '}
-                    up to ~{reviewData.aiDimensions.weight_kg.toFixed(1)} kg
-                    {reviewData.fragility ? ` · Fragile: ${reviewData.fragility}` : ''}
+                    Up to ~{reviewData.aiDimensions.weight_kg.toFixed(1)} kg
+                    {' · '}fits in roughly {Math.round(reviewData.aiDimensions.length_cm)}×{Math.round(reviewData.aiDimensions.width_cm)}×{Math.round(reviewData.aiDimensions.height_cm)} cm box
+                    {reviewData.fragility === 'high' ? ' · Handle with care (fragile)' : ''}
                   </p>
                 )}
                 {reviewData.packagingPlan && (

@@ -249,19 +249,17 @@ export default function ItemsPage() {
     setCollectingClaimId(claimId);
     setReleaseModal(null);
     try {
-      const [claimResponse, itemResponse] = await Promise.all([
-        api.claims.markCollected(claimId),
-        claimsDrawerItem ? api.items.update(claimsDrawerItem.id, { status: 'released' }) : Promise.resolve(null),
-      ]);
+      const claimResponse = await api.claims.markCollected(claimId);
       if (claimResponse.success) {
         setDrawerClaims(prev => prev.map(c =>
           c.id === claimId ? { ...c, ...claimResponse.data } : c
         ));
-      }
-      if (itemResponse && itemResponse.success) {
-        setItems(prev => prev.map(i =>
-          i.id === claimsDrawerItem?.id ? { ...i, ...itemResponse.data } : i
-        ));
+        // Server already released the item — reflect that locally without a second PUT.
+        if (claimsDrawerItem) {
+          setItems(prev => prev.map(i =>
+            i.id === claimsDrawerItem.id ? { ...i, status: 'released' as const } : i
+          ));
+        }
       }
     } catch {
       showToast('Failed to mark as released');
@@ -536,21 +534,26 @@ export default function ItemsPage() {
                             {item.status === 'available' && <span className="w-1.5 h-1.5 bg-white rounded-full inline-block" />}
                             {formatStatusLabel(item.status)}
                           </span>
-                          {item.status === 'expired' && (
-                            <div className="text-[10px] text-slate-400 mt-0.5">{daysAgo(item.date_found)} days</div>
-                          )}
+                          <div className="text-[10px] text-slate-400 mt-0.5">{daysAgo(item.date_found)}d ago</div>
                         </td>
                         <td className="px-6 py-4 text-sm text-slate-500 whitespace-nowrap">
                           {new Date(item.date_found).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
                         </td>
                         <td className="px-6 py-4">
                           {item.claim_count > 0 ? (
-                            <button
-                              onClick={() => openClaimsDrawer(item)}
-                              className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 text-xs font-semibold hover:bg-blue-100 transition-colors"
-                            >
-                              {item.claim_count} claim{item.claim_count !== 1 ? 's' : ''}
-                            </button>
+                            <div className="flex flex-col gap-0.5">
+                              <button
+                                onClick={() => openClaimsDrawer(item)}
+                                className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 text-xs font-semibold hover:bg-blue-100 transition-colors"
+                              >
+                                {item.claim_count} claim{item.claim_count !== 1 ? 's' : ''}
+                              </button>
+                              {item.status === 'available' && (
+                                <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-amber-50 text-amber-700 text-[10px] font-semibold">
+                                  Review needed
+                                </span>
+                              )}
+                            </div>
                           ) : (
                             <span className="inline-flex w-6 h-6 items-center justify-center rounded-full bg-slate-100 text-xs font-semibold text-slate-400">0</span>
                           )}

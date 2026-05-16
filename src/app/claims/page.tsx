@@ -641,8 +641,8 @@ export default function ClaimsPage() {
                   </div>
                 )}
 
-                {/* Pickup & Verification */}
-                <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg space-y-1.5">
+                {/* Pickup & Verification — only shown after approval */}
+                {selectedClaim.status !== 'pending' && <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg space-y-1.5">
                   <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">Pickup & Verification</p>
                   {selectedClaim.pickup_code && (
                     <div className="flex items-center gap-2 text-sm text-slate-700">
@@ -662,7 +662,7 @@ export default function ClaimsPage() {
                       <span className="capitalize">{selectedClaim.payment_status.replace(/_/g, ' ')}</span>
                     </div>
                   )}
-                </div>
+                </div>}
 
                 {/* Courier / Delivery info — shown when relevant */}
                 {(selectedClaim.collection_mode === 'courier' || selectedClaim.delivery_address || selectedClaim.delivery_tracking_info) && (
