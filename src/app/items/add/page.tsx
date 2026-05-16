@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import Layout from '@/components/Layout';
 import dynamic from 'next/dynamic';
 const AIImageAnalysis = dynamic(() => import('@/components/AIImageAnalysis'), { ssr: false });
-import { CreateItemForm, ItemCategory } from '@/types';
+import { CreateItemForm, ItemCategory, ParcelTier } from '@/types';
 import { ITEM_CATEGORIES } from '@/constants/items';
 import { ROUTES } from '@/constants/routes';
 import { XMarkIcon } from '@heroicons/react/24/outline';
@@ -72,6 +72,11 @@ interface GeneratedFeatures {
     brand?: string;
     model?: string;
     tags?: string[];
+    parcelTier?: ParcelTier;
+    aiParcelTier?: ParcelTier;
+    aiDimensions?: { weight_kg: number; length_cm: number; width_cm: number; height_cm: number };
+    fragility?: 'high' | 'medium' | 'low';
+    packagingPlan?: string;
   }
 
   const handleAIDescriptionGenerated = (features: GeneratedFeatures) => {
@@ -87,6 +92,11 @@ interface GeneratedFeatures {
       model: features.model || prev.model,
       tags: features.tags?.length ? features.tags : prev.tags,
       locationFound: prev.locationFound,
+      parcelTier: features.parcelTier ?? prev.parcelTier,
+      aiParcelTier: features.aiParcelTier ?? prev.aiParcelTier,
+      aiDimensions: features.aiDimensions ?? prev.aiDimensions,
+      fragility: features.fragility ?? prev.fragility,
+      packagingPlan: features.packagingPlan ?? prev.packagingPlan,
     }));
     setFormUnlocked(true);
   };

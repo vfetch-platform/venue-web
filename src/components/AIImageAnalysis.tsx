@@ -9,6 +9,15 @@ import { api } from '@/services/api';
 import { AI_MAX_RETRIES, AI_MAX_IMAGES } from '@/constants/config';
 import { useToast } from '@/components/Toast';
 
+type ParcelTier = 'xs' | 's' | 'm' | 'l' | 'xl';
+
+interface AiParcelDimensions {
+  weight_kg: number;
+  length_cm: number;
+  width_cm: number;
+  height_cm: number;
+}
+
 interface ExtractedFeaturesPayload {
   title?: string;
   description?: string;
@@ -18,6 +27,13 @@ interface ExtractedFeaturesPayload {
   brand?: string;
   model?: string;
   locationFound?: string;
+  /** Confirmed tier (after any venue-staff override). Persisted as parcelTier. */
+  parcelTier?: ParcelTier;
+  /** AI's original tier pick, kept alongside the confirmed tier for audit. */
+  aiParcelTier?: ParcelTier;
+  aiDimensions?: AiParcelDimensions;
+  fragility?: 'high' | 'medium' | 'low';
+  packagingPlan?: string;
 }
 
 interface AIImageAnalysisProps {
@@ -26,6 +42,15 @@ interface AIImageAnalysisProps {
   onImagesSelected: (images: File[]) => void;
   onSkipToManual: () => void;
 }
+
+const TIER_LABELS: Record<ParcelTier, string> = {
+  xs: 'Very Small',
+  s: 'Small',
+  m: 'Medium',
+  l: 'Large',
+  xl: 'Extra Large',
+};
+const TIER_KEYS: ParcelTier[] = ['xs', 's', 'm', 'l', 'xl'];
 
 interface AIAnalysisResult {
   description: string;
@@ -204,6 +229,11 @@ export default function AIImageAnalysis({ onDescriptionGenerated, onImagesSelect
         confidence: undefined,
       });
 
+      const aiTier = (analysis as { parcel_tier?: ParcelTier }).parcel_tier;
+      const aiDims = (analysis as { ai_dimensions?: AiParcelDimensions }).ai_dimensions;
+      const fragility = (analysis as { fragility?: 'high' | 'medium' | 'low' }).fragility;
+      const packagingPlan = (analysis as { packaging_plan?: string }).packaging_plan;
+
       setReviewData({
         title: analysis.title || '',
         description: analysis.description || '',
@@ -213,6 +243,13 @@ export default function AIImageAnalysis({ onDescriptionGenerated, onImagesSelect
         brand: analysis.brand || '',
         model: analysis.model || '',
         locationFound: analysis.locationFound || '',
+        // Default the confirmed tier to the AI's pick. Staff can override
+        // before clicking Accept.
+        parcelTier: aiTier,
+        aiParcelTier: aiTier,
+        aiDimensions: aiDims,
+        fragility,
+        packagingPlan,
       });
       setShowReviewModal(true);
     } catch (error) {
@@ -492,6 +529,60 @@ export default function AIImageAnalysis({ onDescriptionGenerated, onImagesSelect
                   }))}
                   className={inputStyles}
                 />
+              </div>
+
+              {/* Estimated parcel size — AI picks tier, staff confirms or overrides.
+                  This is the only place dimensions are captured for the item — the
+                  customer never enters them. We always send the tier ceiling to
+                  Parcel2Go, regardless of the AI's exact estimate. */}
+              <div className="rounded-lg border border-blue-200 bg-blue-50 p-4">
+                <div className="flex items-baseline justify-between mb-2">
+                  <h4 className="text-sm font-semibold text-gray-900">
+                    Estimated Size: {reviewData.parcelTier ? TIER_LABELS[reviewData.parcelTier] : '—'}
+                  </h4>
+                  <span className="text-xs text-gray-500">based on photos + standard packaging</span>
+                </div>
+                {reviewData.aiDimensions && (
+                  <p className="text-xs text-gray-700 mb-1">
+                    AI estimate (upper-bound, after bubble wrap &amp; box):{' '}
+                    up to {Math.round(reviewData.aiDimensions.length_cm)}×
+                    {Math.round(reviewData.aiDimensions.width_cm)}×
+                    {Math.round(reviewData.aiDimensions.height_cm)} cm,{' '}
+                    up to ~{reviewData.aiDimensions.weight_kg.toFixed(1)} kg
+                    {reviewData.fragility ? ` · Fragile: ${reviewData.fragility}` : ''}
+                  </p>
+                )}
+                {reviewData.packagingPlan && (
+                  <p className="text-xs text-gray-600 italic mb-3">{reviewData.packagingPlan}</p>
+                )}
+
+                <label className="block text-xs font-medium text-gray-700 mb-1">
+                  Confirm or override:
+                </label>
+                <div className="grid grid-cols-5 gap-1" role="radiogroup" aria-label="Parcel size tier">
+                  {TIER_KEYS.map(tier => {
+                    const selected = reviewData.parcelTier === tier;
+                    return (
+                      <button
+                        key={tier}
+                        type="button"
+                        role="radio"
+                        aria-checked={selected}
+                        onClick={() => setReviewData(d => ({ ...d, parcelTier: tier }))}
+                        className={`px-2 py-2 text-xs font-medium rounded border transition-colors ${
+                          selected
+                            ? 'bg-slate-900 text-white border-slate-900'
+                            : 'bg-white text-gray-700 border-gray-300 hover:border-slate-500'
+                        }`}
+                      >
+                        {TIER_LABELS[tier]}
+                      </button>
+                    );
+                  })}
+                </div>
+                <p className="mt-2 text-xs text-slate-600">
+                  Pick the next size up if you&apos;re unsure — bigger is always safer.
+                </p>
               </div>
             </div>
 

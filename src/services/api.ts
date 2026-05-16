@@ -1,7 +1,16 @@
 import { ApiResponse, PaginatedResponse, User, Venue, Item, Claim, CreateItemForm } from '@/types';
 
+export type ParcelTier = 'xs' | 's' | 'm' | 'l' | 'xl';
+
+export interface AiParcelDimensions {
+  weight_kg: number;
+  length_cm: number;
+  width_cm: number;
+  height_cm: number;
+}
+
 // Specific payload returned by AI feature extraction endpoint
-interface ExtractedItemFeatures {
+export interface ExtractedItemFeatures {
   title?: string;
   description?: string;
   category?: string;
@@ -10,6 +19,12 @@ interface ExtractedItemFeatures {
   brand?: string;
   model?: string;
   locationFound?: string;
+  /** AI's t-shirt size pick. */
+  parcel_tier?: ParcelTier;
+  /** AI's upper-bound dim estimate (after bubble wrap + box). */
+  ai_dimensions?: AiParcelDimensions;
+  fragility?: 'high' | 'medium' | 'low';
+  packaging_plan?: string;
 }
 
 // Get API base URL from environment
@@ -259,7 +274,14 @@ export const api = {
         } else if (key === 'tags' && Array.isArray(value)) {
           formData.append(key, JSON.stringify(value));
         } else if (value !== null && value !== undefined) {
-          formData.append(key, value as string);
+          // Multipart can only carry strings/Blobs — JSON-encode nested objects
+          // (e.g. aiDimensions). The backend has a customSanitizer that JSON.parses
+          // these fields back into objects before express-validator runs.
+          if (typeof value === 'object' && !(value instanceof File) && !(value instanceof Blob)) {
+            formData.append(key, JSON.stringify(value));
+          } else {
+            formData.append(key, value as string);
+          }
         }
       });
       return apiRequest<ApiResponse<Item>>('/items', {

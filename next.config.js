@@ -8,6 +8,7 @@ const nextConfig = {
         ? [{ protocol: 'http', hostname: 'localhost' }]
         : []),
       { protocol: 'https', hostname: 'images.vfetch.co.uk' },
+      { protocol: 'https', hostname: '*.s3.eu-west-1.amazonaws.com' },
     ],
     // Smaller set of generated sizes — covers thumbnails (48, 96) and modal previews (256, 384)
     imageSizes: [48, 96, 256, 384],

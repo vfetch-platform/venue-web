@@ -182,6 +182,8 @@ export interface PaginatedResponse<T> {
 }
 
 // Form types
+export type ParcelTier = 'xs' | 's' | 'm' | 'l' | 'xl';
+
 export interface CreateItemForm {
   title: string;
   description: string;
@@ -194,6 +196,13 @@ export interface CreateItemForm {
   serialNumber?: string;
   locationFound?: string;
   images?: File[];
+  /** Confirmed parcel tier (after any venue-staff override of AI's pick). */
+  parcelTier?: ParcelTier;
+  /** AI's original tier pick — kept for audit alongside the confirmed tier. */
+  aiParcelTier?: ParcelTier;
+  aiDimensions?: { weight_kg: number; length_cm: number; width_cm: number; height_cm: number };
+  fragility?: 'high' | 'medium' | 'low';
+  packagingPlan?: string;
 }
 
 export interface UpdateVenueForm {
