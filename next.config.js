@@ -7,7 +7,7 @@ const nextConfig = {
       ...(process.env.NODE_ENV === 'development'
         ? [{ protocol: 'http', hostname: 'localhost' }]
         : []),
-      { protocol: 'https', hostname: 'images.vfetch.co.uk' },
+      { protocol: 'https', hostname: process.env.NEXT_PUBLIC_IMAGE_HOSTNAME || 'images.vfetch.co.uk' },
     ],
     // Smaller set of generated sizes — covers thumbnails (48, 96) and modal previews (256, 384)
     imageSizes: [48, 96, 256, 384],
