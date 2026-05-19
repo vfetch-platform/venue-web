@@ -625,9 +625,9 @@ export default function ClaimsPage() {
                       <div className="flex items-center gap-2 text-sm text-slate-700">
                         <ClockIcon className="h-4 w-4 text-slate-400 shrink-0" />
                         <span>
-                          Check-in: <span className="font-medium">{new Date(selectedClaim.venue_interaction_context.started_at).toLocaleDateString()}</span>
+                          Check-in: <span className="font-medium">{new Date(selectedClaim.venue_interaction_context.started_at).toLocaleDateString('en-GB')}</span>
                           {selectedClaim.venue_interaction_context.ended_at && (
-                            <> &rarr; Check-out: <span className="font-medium">{new Date(selectedClaim.venue_interaction_context.ended_at).toLocaleDateString()}</span></>
+                            <> &rarr; Check-out: <span className="font-medium">{new Date(selectedClaim.venue_interaction_context.ended_at).toLocaleDateString('en-GB')}</span></>
                           )}
                         </span>
                       </div>

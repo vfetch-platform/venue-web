@@ -27,6 +27,21 @@ export interface ExtractedItemFeatures {
   packaging_plan?: string;
 }
 
+/**
+ * The backend returns dimension data nested under ai_dimensions.
+ * Flatten them to top-level Item fields for use in the UI.
+ */
+function flattenItem(raw: Record<string, any>): Item {
+  const dims = raw.ai_dimensions as { weight_kg?: number; length_cm?: number; width_cm?: number; height_cm?: number } | undefined;
+  return {
+    ...raw,
+    weight_kg: dims?.weight_kg,
+    length_cm: dims?.length_cm,
+    width_cm: dims?.width_cm,
+    height_cm: dims?.height_cm,
+  } as Item;
+}
+
 // Get API base URL from environment
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL!;
 
@@ -269,7 +284,9 @@ export const api = {
     },
 
     getById: async (id: string) => {
-      return apiRequest<ApiResponse<Item>>(`/items/${id}`);
+      const resp = await apiRequest<ApiResponse<Item>>(`/items/${id}`);
+      if (resp.success && resp.data) resp.data = flattenItem(resp.data as any);
+      return resp;
     },
 
     create: async (data: CreateItemForm) => {
@@ -297,10 +314,12 @@ export const api = {
     },
 
     update: async (id: string, data: Partial<Item>) => {
-      return apiRequest<ApiResponse<Item>>(`/items/${id}`, {
+      const resp = await apiRequest<ApiResponse<Item>>(`/items/${id}`, {
         method: 'PUT',
         body: JSON.stringify(data),
       });
+      if (resp.success && resp.data) resp.data = flattenItem(resp.data as any);
+      return resp;
     },
 
     delete: async (id: string, reason?: string) => {
@@ -313,7 +332,11 @@ export const api = {
     // Get items for a specific venue
     getByVenue: async (venueId: string, params?: Record<string, string | number>) => {
       const queryString = params ? `?${new URLSearchParams(params as Record<string, string>).toString()}` : '';
-      return apiRequest<ApiResponse<PaginatedResponse<Item>>>(`/items/venue/${venueId}${queryString}`);
+      const resp = await apiRequest<ApiResponse<PaginatedResponse<Item>>>(`/items/venue/${venueId}${queryString}`);
+      if (resp.success && resp.data?.data) {
+        resp.data.data = resp.data.data.map(item => flattenItem(item as any));
+      }
+      return resp;
     },
 
     // Extract features from 1–2 images in a single AI call

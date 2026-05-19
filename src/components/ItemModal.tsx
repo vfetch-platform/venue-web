@@ -58,10 +58,15 @@ export default function ItemModal({ item, isOpen, mode, onClose, onSave }: ItemM
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     if (isViewMode) return;
 
-    const { name, value } = e.target;
+    const { name, value, type } = e.target;
+    const numericFields = ['weight_kg', 'length_cm', 'width_cm', 'height_cm'];
+    const parsedValue = type === 'number' && numericFields.includes(name)
+      ? (value === '' ? undefined : parseFloat(value))
+      : value;
+
     setEditData(prev => prev ? {
       ...prev,
-      [name]: value,
+      [name]: parsedValue,
     } : null);
   };
 
@@ -366,6 +371,96 @@ export default function ItemModal({ item, isOpen, mode, onClose, onSave }: ItemM
               </div>
             )}
           </div>
+
+          {/* Weight & Dimensions (edit mode only) */}
+          {!isViewMode && (
+            <div>
+              <p className="text-sm font-medium text-slate-700 mb-2">Weight &amp; Dimensions</p>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                <div>
+                  <label className="block text-xs font-medium text-slate-600 mb-1">Weight (kg)</label>
+                  <input
+                    type="number"
+                    name="weight_kg"
+                    min="0"
+                    step="0.01"
+                    className={inputStyles}
+                    value={currentData.weight_kg ?? ''}
+                    onChange={handleInputChange}
+                    placeholder="e.g. 0.5"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-slate-600 mb-1">Length (cm)</label>
+                  <input
+                    type="number"
+                    name="length_cm"
+                    min="0"
+                    step="0.1"
+                    className={inputStyles}
+                    value={currentData.length_cm ?? ''}
+                    onChange={handleInputChange}
+                    placeholder="e.g. 30"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-slate-600 mb-1">Width (cm)</label>
+                  <input
+                    type="number"
+                    name="width_cm"
+                    min="0"
+                    step="0.1"
+                    className={inputStyles}
+                    value={currentData.width_cm ?? ''}
+                    onChange={handleInputChange}
+                    placeholder="e.g. 20"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-slate-600 mb-1">Height (cm)</label>
+                  <input
+                    type="number"
+                    name="height_cm"
+                    min="0"
+                    step="0.1"
+                    className={inputStyles}
+                    value={currentData.height_cm ?? ''}
+                    onChange={handleInputChange}
+                    placeholder="e.g. 10"
+                  />
+                </div>
+              </div>
+              <div className="mt-3">
+                <label className="block text-xs font-medium text-slate-600 mb-1">Fragility</label>
+                <select
+                  name="fragility"
+                  className={inputStyles}
+                  value={currentData.fragility || ''}
+                  onChange={handleInputChange}
+                >
+                  <option value="">— Not specified —</option>
+                  <option value="low">Low</option>
+                  <option value="medium">Medium</option>
+                  <option value="high">High</option>
+                </select>
+              </div>
+            </div>
+          )}
+
+          {/* Weight & Dimensions (view mode — only shown when data exists) */}
+          {isViewMode && (currentData.weight_kg || currentData.length_cm || currentData.width_cm || currentData.height_cm || currentData.fragility) && (
+            <div>
+              <p className="text-sm font-medium text-slate-700 mb-2">Weight &amp; Dimensions</p>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm text-slate-900">
+                {currentData.weight_kg != null && <div><span className="text-xs text-slate-500 block">Weight</span>{currentData.weight_kg} kg</div>}
+                {currentData.length_cm != null && <div><span className="text-xs text-slate-500 block">Length</span>{currentData.length_cm} cm</div>}
+                {currentData.width_cm != null && <div><span className="text-xs text-slate-500 block">Width</span>{currentData.width_cm} cm</div>}
+                {currentData.height_cm != null && <div><span className="text-xs text-slate-500 block">Height</span>{currentData.height_cm} cm</div>}
+                {currentData.fragility && <div><span className="text-xs text-slate-500 block">Fragility</span><span className="capitalize">{currentData.fragility}</span></div>}
+              </div>
+            </div>
+          )}
+
 
           {/* Tags */}
           {currentData.tags.length > 0 && (
