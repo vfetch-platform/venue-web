@@ -31,8 +31,10 @@ export interface ExtractedItemFeatures {
  * The backend returns dimension data nested under ai_dimensions.
  * Flatten them to top-level Item fields for use in the UI.
  */
-function flattenItem(raw: Record<string, any>): Item {
-  const dims = raw.ai_dimensions as { weight_kg?: number; length_cm?: number; width_cm?: number; height_cm?: number } | undefined;
+function flattenItem(raw: Record<string, unknown>): Item {
+  const dims = raw.ai_dimensions as
+    | { weight_kg?: number; length_cm?: number; width_cm?: number; height_cm?: number }
+    | undefined;
   return {
     ...raw,
     weight_kg: dims?.weight_kg,
@@ -43,7 +45,7 @@ function flattenItem(raw: Record<string, any>): Item {
 }
 
 // Get API base URL from environment
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL!;
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL?.trim() || 'https://staging-api.vfetch.co.uk/api';
 
 class ApiError extends Error {
   constructor(
@@ -285,7 +287,9 @@ export const api = {
 
     getById: async (id: string) => {
       const resp = await apiRequest<ApiResponse<Item>>(`/items/${id}`);
-      if (resp.success && resp.data) resp.data = flattenItem(resp.data as any);
+      if (resp.success && resp.data) {
+        resp.data = flattenItem(resp.data as unknown as Record<string, unknown>);
+      }
       return resp;
     },
 
@@ -314,11 +318,26 @@ export const api = {
     },
 
     update: async (id: string, data: Partial<Item>) => {
+      // Re-nest flat dimension fields back into ai_dimensions for the backend.
+      const { weight_kg, length_cm, width_cm, height_cm, ...rest } = data;
+      const hasDims = [weight_kg, length_cm, width_cm, height_cm].some(v => v !== undefined);
+      const payload: Record<string, unknown> = { ...rest };
+      if (hasDims) {
+        payload.ai_dimensions = {
+          ...(rest.ai_dimensions ?? {}),
+          ...(weight_kg !== undefined && { weight_kg }),
+          ...(length_cm !== undefined && { length_cm }),
+          ...(width_cm !== undefined && { width_cm }),
+          ...(height_cm !== undefined && { height_cm }),
+        };
+      }
       const resp = await apiRequest<ApiResponse<Item>>(`/items/${id}`, {
         method: 'PUT',
-        body: JSON.stringify(data),
+        body: JSON.stringify(payload),
       });
-      if (resp.success && resp.data) resp.data = flattenItem(resp.data as any);
+      if (resp.success && resp.data) {
+        resp.data = flattenItem(resp.data as unknown as Record<string, unknown>);
+      }
       return resp;
     },
 
@@ -334,7 +353,9 @@ export const api = {
       const queryString = params ? `?${new URLSearchParams(params as Record<string, string>).toString()}` : '';
       const resp = await apiRequest<ApiResponse<PaginatedResponse<Item>>>(`/items/venue/${venueId}${queryString}`);
       if (resp.success && resp.data?.data) {
-        resp.data.data = resp.data.data.map(item => flattenItem(item as any));
+        resp.data.data = resp.data.data.map((item) =>
+          flattenItem(item as unknown as Record<string, unknown>)
+        );
       }
       return resp;
     },

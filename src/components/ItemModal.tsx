@@ -18,7 +18,7 @@ interface ItemModalProps {
   isOpen: boolean;
   mode: 'view' | 'edit';
   onClose: () => void;
-  onSave?: (updatedItem: Item) => void;
+  onSave?: (updatedItem: Item) => void | Promise<void>;
 }
 
 
@@ -42,10 +42,10 @@ export default function ItemModal({ item, isOpen, mode, onClose, onSave }: ItemM
     if (isOpen) closeButtonRef.current?.focus();
   }, [isOpen]);
 
-  // Reset edit data whenever a new item is opened or mode switches
-  if (editData?.id !== item?.id && item) {
-    setEditData(item);
-  }
+  // Reset edit data whenever the item changes (new item opened, or same item re-opened after a save).
+  useEffect(() => {
+    if (item) setEditData(item);
+  }, [item]);
 
 
   if (!isOpen || !item) {
@@ -75,8 +75,7 @@ export default function ItemModal({ item, isOpen, mode, onClose, onSave }: ItemM
     if (!editData || !onSave) return;
     setIsLoading(true);
     try {
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      onSave(editData);
+      await onSave(editData);
       onClose();
     } catch (error) {
       console.error('Error updating item:', error);

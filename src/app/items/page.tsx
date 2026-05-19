@@ -210,10 +210,23 @@ export default function ItemsPage() {
   const handleSaveItem = async (updatedItem: Item) => {
     try {
       const response = await api.items.update(updatedItem.id, updatedItem);
-      if (response.success && response.data) {
+      if (response.success) {
+        // If the backend echoes the updated item, merge its fields with our edits
+        // (so dimension fields are always reflected even if the backend omits them).
+        // If the backend returns no data, fall back to what the user submitted.
+        const saved: Item = response.data
+          ? {
+              ...response.data,
+              weight_kg: response.data.weight_kg ?? updatedItem.weight_kg,
+              length_cm: response.data.length_cm ?? updatedItem.length_cm,
+              width_cm: response.data.width_cm ?? updatedItem.width_cm,
+              height_cm: response.data.height_cm ?? updatedItem.height_cm,
+              fragility: response.data.fragility ?? updatedItem.fragility,
+            }
+          : updatedItem;
         setItems(prev =>
           prev.map(item =>
-            item.id === updatedItem.id ? response.data : item
+            item.id === updatedItem.id ? saved : item
           )
         );
       }
