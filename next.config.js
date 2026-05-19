@@ -1,4 +1,10 @@
 /** @type {import('next').NextConfig} */
+const DEFAULT_API_URL = 'https://staging-api.vfetch.co.uk/api';
+
+function getApiUrl() {
+  return process.env.NEXT_PUBLIC_API_URL?.trim() || DEFAULT_API_URL;
+}
+
 const nextConfig = {
   reactStrictMode: true,
   devIndicators: false,
@@ -30,10 +36,18 @@ const nextConfig = {
     ];
   },
   async rewrites() {
+    const apiUrl = getApiUrl();
+
+    try {
+      new URL(apiUrl);
+    } catch {
+      return [];
+    }
+
     return [
       {
         source: '/api/:path*',
-        destination: process.env.NEXT_PUBLIC_API_URL + '/:path*',
+        destination: `${apiUrl}/:path*`,
       },
     ];
   },

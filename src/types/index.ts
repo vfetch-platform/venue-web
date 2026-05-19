@@ -81,6 +81,11 @@ export interface Item {
   ai_dimensions?: { weight_kg: number; length_cm: number; width_cm: number; height_cm: number };
   fragility?: 'high' | 'medium' | 'low';
   packaging_plan?: string;
+  // Dimension/weight fields (flattened from ai_dimensions by the API layer, editable by venue staff)
+  weight_kg?: number;
+  length_cm?: number;
+  width_cm?: number;
+  height_cm?: number;
   venue?: Venue;
   created_at: string;
   updated_at: string;

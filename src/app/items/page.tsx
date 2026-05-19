@@ -210,10 +210,23 @@ export default function ItemsPage() {
   const handleSaveItem = async (updatedItem: Item) => {
     try {
       const response = await api.items.update(updatedItem.id, updatedItem);
-      if (response.success && response.data) {
+      if (response.success) {
+        // If the backend echoes the updated item, merge its fields with our edits
+        // (so dimension fields are always reflected even if the backend omits them).
+        // If the backend returns no data, fall back to what the user submitted.
+        const saved: Item = response.data
+          ? {
+              ...response.data,
+              weight_kg: response.data.weight_kg ?? updatedItem.weight_kg,
+              length_cm: response.data.length_cm ?? updatedItem.length_cm,
+              width_cm: response.data.width_cm ?? updatedItem.width_cm,
+              height_cm: response.data.height_cm ?? updatedItem.height_cm,
+              fragility: response.data.fragility ?? updatedItem.fragility,
+            }
+          : updatedItem;
         setItems(prev =>
           prev.map(item =>
-            item.id === updatedItem.id ? response.data : item
+            item.id === updatedItem.id ? saved : item
           )
         );
       }
@@ -254,7 +267,8 @@ export default function ItemsPage() {
         setDrawerClaims(prev => prev.map(c =>
           c.id === claimId ? { ...c, ...claimResponse.data } : c
         ));
-        // Server already released the item — reflect that locally without a second PUT.
+        // The backend already releases the item inside ClaimService.markCollected().
+        // Update local state directly — no second API call needed.
         if (claimsDrawerItem) {
           setItems(prev => prev.map(i =>
             i.id === claimsDrawerItem.id ? { ...i, status: 'released' as const } : i
@@ -485,10 +499,12 @@ export default function ItemsPage() {
                       <button onClick={() => handleViewItem(item)} className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded" title="View"><EyeIcon className="h-4 w-4" /></button>
                       <button onClick={() => handleEditItem(item)} className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded" title="Edit"><PencilIcon className="h-4 w-4" /></button>
                       <button onClick={() => handleDeleteItem(item.id)} className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded" title="Delete"><TrashIcon className="h-4 w-4" /></button>
-                      {item.claim_count > 0 && (
+                      {item.claim_count > 0 ? (
                         <button onClick={() => openClaimsDrawer(item)} className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded text-xs font-semibold" title="View claims">
                           {item.claim_count} claim{item.claim_count !== 1 ? 's' : ''}
                         </button>
+                      ) : (
+                        <span className="text-xs text-slate-400">None</span>
                       )}
                     </div>
                   </li>
@@ -555,7 +571,7 @@ export default function ItemsPage() {
                               )}
                             </div>
                           ) : (
-                            <span className="inline-flex w-6 h-6 items-center justify-center rounded-full bg-slate-100 text-xs font-semibold text-slate-400">0</span>
+                            <span className="text-xs text-slate-400">None</span>
                           )}
                         </td>
                         <td className="px-6 py-4">
